@@ -1,6 +1,16 @@
 module scBayesDeconv
 
-    include("gaussianMixture.jl")
-    include("relabelling.jl")
+    #Packages
+    using MLJ, Distributions, Statistics, Random, ProgressMeter
 
-end # module
+    #Models for initialization
+    kmeans_ = MLJ.@load KMeans pkg=Clustering verbosity=0
+
+    #Exported functions
+    export finiteGaussianMixtureEM, finiteGaussianMixture
+
+    #Files
+    include("relabelling.jl")
+    include("gaussianMixture.jl")
+
+end

@@ -15,22 +15,111 @@ function closerPoints(X::Matrix,centers::Matrix)
     return Matrix([i[2] for i in argmin(d,dims=2)])[:,1]
 end
 
-function gmloglikelihood!(p::Matrix,X::Matrix,centers::Matrix,covariances::Array,weights::Vector)
+function gmloglikelihood!(p::Matrix,X::Matrix,centers::Vector,covariances::Vector,weights::Vector)
 
     for j in 1:size(centers)[1]
-        c = @views centers[j,:]
-        sigma = covariances[j,:,:]
-        sigmaInv = inv(sigma)
-        determinant = abs(det(sigma))
+        #Make MultivariateNormal from Distributions
+        μ = centers[j]
+        Σ = covariances[j]
         w = weights[j]
+        dist = MultivariateNormal(μ,Σ)
+        #Compute the logpdf for each sample
         for i in 1:size(X)[1]
             x = @views X[i,:]
-            m = (x-c).^2
-            p[i,j] = -(transpose(m)*sigmaInv*m/2)[1]-log(determinant)/2+log(w)
+            p[i,j] = logpdf(dist,x)+log(w)
         end
     end
 
     return
+end
+
+function gmlikelihood!(p::Matrix,X::Matrix,centers::Vector,covariances::Vector,weights::Vector)
+
+    gmloglikelihood!(p,X,centers,covariances,weights)
+
+    #Rescale
+    p .-= maximum(p,dims=2)
+    #Exp
+    p .= exp.(p)
+    #Normalize
+    p ./= sum(p,dims=2)
+
+    return
+end
+
+function initializationGaussianMixture(
+                                    X::Matrix,
+                                    k::Int,
+                                    initialization::Union{String,Vector} = "kmeans"
+                                    )
+
+    nCells, dimensions = size(X)
+
+    #Check shape of initial centers
+    if typeof(initialization) <: Vector
+        if size(initialization)[1] != size(X)[1] || maximum(initialization) > k || minimum(initialization) < 1
+            error("If initialization is a matrix of given the identitities, the dimensions must be the same size as samples and have identities in the range (1,k).")
+        end
+    end
+
+    centers = Vector{Float32}[]
+    identities = zeros(Int, size(X)[1])
+    covariances = Matrix{Float32}[]
+    weights = zeros(Float32, k)
+    if initialization in ["kmeans","random"] 
+        if initialization == "kmeans" && k > 1
+            #Fit kmeans
+            model = kmeans_(k=k)
+            mach = machine(model,X,scitype_check_level=0)
+            fit!(mach,verbosity=0)
+            centers = permutedims(fitted_params(mach)[1])
+        else
+            centers = rand(k,size(X)[2])
+            centers .= centers .* (maximum(X,dims=1).-minimum(X,dims=1)) .-minimum(X,dims=1) #Scale to be in the box
+        end
+        #Identities
+        identities = closerPoints(X,centers)
+        #Centers
+        centers = [centers[i,:] for i in 1:k]
+        #Covariances
+        for id in 1:k
+            push!(covariances,cov(@views X[identities.==id,:]))
+        end
+        #Weights
+        weights = [sum(identities.==id)/nCells for id in 1:k]
+    elseif typeof(initialization) <: Vector
+        #Identitites
+        identities .= initialization
+        #Centers
+        weights = [reshape(mean(@views(X[identities.==id,:]),dims=1),dimensions) for id in 1:k]
+        #Covariances
+        for id in 1:k
+            push!(covariances,cov(@views X[identities.==id,:]))
+        end
+        #Weights
+        weights = [sum(identities.==id)/nCells for id in 1:k]
+    else
+        error("initialization must be 'kmeans', 'random' or a vector of specifying the identities of the samples.")
+    end
+
+    return centers, covariances, weights, identities
+end
+
+function initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
+    
+    if μ0 === nothing
+        μ0 = reshape(mean(X,dims=1),size(X)[2])
+    elseif size(μ0) != (size(X)[1],)
+        error("μ0 must be or nothing or vector of the same size as dimensions in the system.")
+    end
+
+    if Σ0 === nothing
+        Σ0 = cov(X)
+    elseif size(Σ0) != (size(X)[1],size(X)[1])
+        error("Σ0 must be or nothing or a squared matrix of the same size as dimensions in the system.")
+    end
+
+    return μ0,Σ0
 end
 
 """
@@ -55,43 +144,14 @@ Clustering with multivariate gaussian distributions using Expectation Maximizati
 """
 function finiteGaussianMixtureEM(X::Matrix;
                             k::Int,
-                            initialization::Union{String,Matrix} = "kmeans",
+                            initialization::Union{String,Vector} = "kmeans",
                             maximumSteps::Int = 10000                                
                             )
 
-    #Check shape of initial centers
-    if typeof(initialization) == Matrix
-        if size(initialisation) != (k,size(X)[2])
-            error("If initialization is a matrix of given initial positions, the dimensions must be the same size as (k,variables).")
-        end
-    end
+    nCells, dimensions = size(X)
 
-    nCells = size(X)[1]
-
-    #Initialization centers
-    centers = zeros(k,size(X)[2])
-    if initialization == "kmeans"
-        model = kmeans_(k=k)
-        mach = machine(model,X,scitype_check_level=0)
-        fit!(mach,verbosity=0)
-        centers = permutedims(fitted_params(mach)[1])
-    elseif initialization == "random"
-        centers = rand(k,size(X)[2])
-        centers .= centers .* (maximum(X,dims=1).-minimum(X,dims=1)) .-minimum(X,dims=1)
-    elseif typeof(initialization) == Matrix
-        centers .= initialization
-    else
-        error("initialization must be 'kmeans', 'random' or a matrix of specifying the centers of the gaussian.")
-    end
-    #Initialization of identities
-    identities = closerPoints(X,centers)
-    #Initialization of covariances
-    covariances = []
-    for id in 1:k
-        push!(covariances,cov(@views X[identities.==id,:]))
-    end
-    #Initialization of weights
-    weights = [sum(identities.==id)/nCells for id in 1:k]
+    #Initialization
+    centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization)
 
     #Loop
     p = zeros(nCells,k)
@@ -108,24 +168,17 @@ function finiteGaussianMixtureEM(X::Matrix;
 
             weights[i] = sum(ids)/nCells
             if weights[i] > 0            
-                centers[i,:] .= mean(X[ids,:],dims=1)[1,:]
+                centers[i] .= mean(X[ids,:],dims=1)[1,:]
                 covariances[i] .= cov(X[ids,:])
             end
         end
         steps += 1
     end
 
-    fct.uns[key_added] = Dict([
-        "k" => k,
-        "maximumSteps" => maximumSteps,
-        "stepsBeforeConvergence" => steps,
-        "initialization" => initialization,
-        "weights" => p
-    ])
+    #Fitted distribution
+    dist = MixtureModel(MultivariateNormal[[MultivariateNormal(i,j) for (i,j) in zip(centers,covariances)]...],weights)
 
-    fct.obs[!,key_added] = identitiesNew
-
-    return
+    return dist, identities
 
 end
 
@@ -146,149 +199,172 @@ function gmIdentitiesProbability!(p::Matrix,X::Matrix,centers::Matrix,covariance
     return
 end
 
-function finiteGaussianMixture(fct::Matrix;
+function finiteGaussianMixture(X::Matrix;
     k::Int,
     initialization::Union{String,Matrix} = "kmeans",
+    α = 1,
+    ν0 = 1,
+    κ0 = 1,
+    μ0 = nothing,
+    Σ0 = nothing,
     ignoreSteps::Int = 1000, 
     saveSteps::Int = 1000,
     saveEach::Int = 10,
-    key_added::String = "gaussianMixture",
-    key_obsm::Union{Nothing,String} = nothing,
-    n_components::Union{Nothing,Int} = nothing,
-    key_used_channels::Union{Nothing,String} = nothing,
     verbose = false
     )
 
-    ProgressMeter.ijulia_behavior(:clear)
+    nCells, dimensions = size(X)
 
-    if key_obsm !== nothing && key_used_channels !== nothing
-    error("key_obsm and key_used_channels cannot be specified at the same time.")
-    elseif key_obsm !== nothing
-    if n_components !== nothing
-    X = fct.obsm[key_obsm][:,1:n_components]
-    else
-    X = fct.obsm[key_obsm]
-    end
-    else
-    if key_used_channels !== nothing
-    channels = fct.var[:,key_used_channels]
-    if typeof(channels) != Vector{Bool}
-    error("key_used_channels should be a column in var of Bool entries specifying which channels to use for clustering.")
-    end
+    #Activate progress line
+    if verbose 
+        ProgressMeter.ijulia_behavior(:clear)
+        prog = Progress(length(ignoreSteps+saveSteps))
+    end 
 
-    X = fct.X[:,channels]
-    else
-    X = fct.X
-    end
-    end
+    #Initialization
+    centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization)
+    μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
 
-    #Check shape of initial centers
-    if typeof(initialization) == Matrix
-    if size(initialisation) != (k,size(X)[2])
-    error("If initialization is a matrix of given initial positions, the dimensions must be the same size as (k,variables).")
-    end
-    end
-
-    nCells = size(X)[1]
-    dims = size(X)[2]
-
-    #Initialization centers
-    centers = zeros(k,dims)
-    if initialization == "kmeans"
-    model = kmeans_(k=k)
-    mach = machine(model,X,scitype_check_level=0)
-    fit!(mach,verbosity=0)
-    centers = permutedims(fitted_params(mach)[1])
-    elseif initialization == "random"
-    centers = rand(k,dims)
-    centers .= centers .* (maximum(X,dims=1).-minimum(X,dims=1)) .-minimum(X,dims=1)
-    elseif typeof(initialization) == Matrix
-    centers .= initialization
-    else
-    error("initialization must be 'kmeans', 'random' or a matrix of specifying the centers of the gaussian.")
-    end
-    #Initialization of identities
-    identities = closerPoints(X,centers)
-    identitiesRef = copy(identities)
-    #Initialization of covariances
-    covariances = zeros(k,dims,dims)
-    for id in 1:k
-    votes = identities.==id
-    if sum(votes) > dims
-    covariances[id,:,:] .= cov(@views X[votes,:])
-    else
-    for i in 1:dims
-    covariances[id,i,i] = 1
-    end
-    end
-    end
-    #Initialization of weights
-    weights = [sum(identities.==id)/nCells for id in 1:k]
-
-    #Loop
+    #Auxiliar functions
     p = zeros(nCells,k)
-    steps = 0
     votes = fill(0,k) #Auxiliar for sampling from the Dirichlet distributions
     vote = fill(0,k) #Auxiliar for sampling from the Dirichlet distributions
-    nSave = sum((ignoreSteps:(ignoreSteps+saveSteps)).%saveEach .== 0)
-    saveMeans = zeros(nSave,k,dims)
-    saveCovariances = zeros(nSave,k,dims,dims)
-    saveWeights = zeros(nSave,k)
-    countSave = 0
-    itrs = 1:(ignoreSteps+saveSteps)
+
+    saveIds = Vector{Int}[]
+    saveDist = MixtureModel[]
+
+    #Loop
+    for step in 1:(ignoreSteps+saveSteps)
+        #Sample identities
+        gmlikelihood!(p,X,centers,covariances,weights)
+        votes .= 0 #Reset votes
+        for i in 1:nCells           
+            vote .= rand(Multinomial(1,@views(p[i,:])))
+            votes .+= vote
+            identities[i] = findfirst(vote.==1)
+        end
+        #Sample parameters
+            #Sample weights
+        weights .= rand(Dirichlet(votes.+α/k))
+        for comp in 1:k
+            ids = identities.==comp
+
+            if votes[comp] > dimensions #Check if we have enough statistical power to compute the wishart            
+                #Statistics
+                m = reshape(mean(X[ids,:],dims=1),dimensions)
+                S2 = cov(@views(X[ids,:]),corrected=false)
+                #Sample covariance
+                neff = votes[comp]+ν0+1
+
+                Σeff = votes[comp]*S2 + votes[comp]*(centers[comp]-m)*transpose((centers[comp]-m)) + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
+                Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
+                covariances[comp] = rand(InverseWishart(neff,Σeff))
+                #Sample centers
+                μeff = (votes[comp]*m+κ0*μ0)/(votes[comp]+κ0)
+                centers[comp] .= rand(MultivariateNormal(μeff,covariances[comp]/(votes[comp]+κ0)))
+
+            end
+        end
+
+        #Save
+        if step >= ignoreSteps && step%saveEach == 0
+            #rel = relabeling(identities,identitiesRef)
+            dist = MixtureModel(MultivariateNormal[[MultivariateNormal(copy(i),copy(j)) for (i,j) in zip(centers,covariances)]...],copy(weights))
+            push!(saveDist,deepcopy(dist))
+            push!(saveIds,copy(identities))
+        end
+
+        #Show progress bar if verbose
+        if verbose
+            next!(prog,showvalues=[(:iter,step)])
+        end
+
+    end
+
+    return saveDist, saveIds
+end
+
+function infiniteGaussianMixture(X::Matrix;
+    kinit = 1,
+    initialization::Union{String,Matrix} = "kmeans",
+    α = 1,
+    ν0 = 1,
+    κ0 = 1,
+    μ0 = nothing,
+    Σ0 = nothing,
+    ignoreSteps::Int = 1000, 
+    saveSteps::Int = 1000,
+    saveEach::Int = 10,
+    verbose = false
+    )
+
+    nCells, dimensions = size(X)
+
+    #Activate progress line
     if verbose 
-    #itrs = ProgressBar(1:(ignoreSteps+saveSteps))
-    prog = Progress(length(itrs))
+        ProgressMeter.ijulia_behavior(:clear)
+        prog = Progress(length(ignoreSteps+saveSteps))
     end 
-    for step in itrs
-    #Sample identities
-    gmIdentitiesProbability!(p,X,centers,covariances,weights)
-    for i in 1:nCells           
-    vote .= rand(Multinomial(1,p[i,:]))
-    votes .+= vote
-    identities[i] = findfirst(vote.==1)
-    end
-    #Sample parameters
-    #Sample weights
-    weights .= rand(Dirichlet(votes.+1))
-    for i in 1:k
-    ids = identities.==i
 
-    if votes[i] > dims #Check if we have enough statistical power to compute the wishart            
-    # Sample covariances
-    c = cov(X[ids,:])
-    w = rand(InverseWishart(votes[i],votes[i].*c))
-    covariances[i,:,:] .= w
-    m = reshape(mean(X[ids,:],dims=1),dims)
-    centers[i,:] .= rand(MultivariateNormal(m,w))
-    end
+    #Initialization
+    centers,covariances,weights,identities = initializationGaussianMixture(X,kinit,initialization)
+    μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
+
+    #Auxiliar functions
+    p = zeros(nCells,k)
+    votes = fill(0,k) #Auxiliar for sampling from the Dirichlet distributions
+    vote = fill(0,k) #Auxiliar for sampling from the Dirichlet distributions
+
+    saveIds = Vector{Int}[]
+    saveDist = MixtureModel[]
+
+    #Loop
+    for step in 1:(ignoreSteps+saveSteps)
+        #Sample identities
+        gmlikelihood!(p,X,centers,covariances,weights)
+        votes .= 0 #Reset votes
+        for i in 1:nCells           
+            vote .= rand(Multinomial(1,@views(p[i,:])))
+            votes .+= vote
+            identities[i] = findfirst(vote.==1)
+        end
+        #Sample parameters
+            #Sample weights
+        weights .= rand(Dirichlet(votes.+α/k))
+        for comp in 1:k
+            ids = identities.==comp 
+
+            if votes[comp] > dimensions #Check if we have enough statistical power to compute the wishart            
+                #Statistics
+                m = reshape(mean(X[ids,:],dims=1),dimensions)
+                S2 = cov(@views(X[ids,:]),corrected=false)
+                #Sample covariance
+                neff = votes[comp]+ν0+1
+
+                Σeff = votes[comp]*S2 + votes[comp]*(centers[comp]-m)*transpose((centers[comp]-m)) + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
+                Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
+                covariances[comp] = rand(InverseWishart(neff,Σeff))
+                #Sample centers
+                μeff = (votes[comp]*m+κ0*μ0)/(votes[comp]+κ0)
+                centers[comp] .= rand(MultivariateNormal(μeff,covariances[comp]/(votes[comp]+κ0)))
+
+            end
+        end
+
+        #Save
+        if step >= ignoreSteps && step%saveEach == 0
+            #rel = relabeling(identities,identitiesRef)
+            dist = MixtureModel(MultivariateNormal[[MultivariateNormal(copy(i),copy(j)) for (i,j) in zip(centers,covariances)]...],copy(weights))
+            push!(saveDist,deepcopy(dist))
+            push!(saveIds,copy(identities))
+        end
+
+        #Show progress bar if verbose
+        if verbose
+            next!(prog,showvalues=[(:iter,step)])
+        end
+
     end
 
-    if step >= ignoreSteps && step%saveEach == 0
-    rel = relabeling(identities,identitiesRef)
-    countSave += 1
-    saveWeights[countSave,:] .= copy(weights)[rel]
-    saveCovariances[countSave,:,:,:] .= copy(covariances)[rel,:,:]
-    saveMeans[countSave,:,:] .= copy(centers)[rel,:]
-    end
-
-    if verbose
-    next!(prog,showvalues=[(:iter,step)])
-    end
-
-    votes .= 0
-    end
-
-    fct.uns[key_added] = Dict([
-    "k" => k,
-    "initialization" => initialization,
-    "ignoreSteps" => ignoreSteps, 
-    "saveSteps" => saveSteps,
-    "saveEach" => saveEach,
-    "weights" => saveWeights,
-    "covariances" => saveCovariances,
-    "means" => saveMeans,
-    ])
-
-    return
+    return saveDist, saveIds
 end
