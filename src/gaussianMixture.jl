@@ -1,3 +1,19 @@
+function relabeling(indicator,indicatorRef)
+    k = maximum(indicator)
+    #Initialize
+    C = zeros(k,k) #Missclassification matrix
+    #Create cost matrix
+    for i in 1:k
+        for j in 1:k
+            C[i,j] = sum((indicatorRef .== i) .& (indicator .!= j))
+        end
+    end
+    #Perform Hungarian Algorithm
+    assignement, cost = hungarian(C)
+    
+    return assignement
+end
+
 function closerPoints(X::Matrix,centers::Matrix)
     if size(X)[2] != size(centers)[2]
         error("Second dimension")
@@ -80,10 +96,10 @@ function initializationGaussianMixture(
         #Identities
         identities = closerPoints(X,centers)
         #Centers
-        centers = [centers[i,:] for i in 1:k]
+        centers = [reshape(mean(X[identities.==i,:],dims=1),dimensions) for i in 1:k]
         #Covariances
         for id in 1:k
-            push!(covariances,cov(@views X[identities.==id,:]))
+            push!(covariances,cov(@views(X[identities.==id,:]),corrected=false))
         end
         #Weights
         weights = [sum(identities.==id)/nCells for id in 1:k]
@@ -94,7 +110,7 @@ function initializationGaussianMixture(
         weights = [reshape(mean(@views(X[identities.==id,:]),dims=1),dimensions) for id in 1:k]
         #Covariances
         for id in 1:k
-            push!(covariances,cov(@views X[identities.==id,:]))
+            push!(covariances,cov(@views(X[identities.==id,:]),corrected=false))
         end
         #Weights
         weights = [sum(identities.==id)/nCells for id in 1:k]
@@ -109,13 +125,13 @@ function initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
     
     if μ0 === nothing
         μ0 = reshape(mean(X,dims=1),size(X)[2])
-    elseif size(μ0) != (size(X)[1],)
+    elseif size(μ0) != (size(X)[2],)
         error("μ0 must be or nothing or vector of the same size as dimensions in the system.")
     end
 
     if Σ0 === nothing
-        Σ0 = cov(X)
-    elseif size(Σ0) != (size(X)[1],size(X)[1])
+        Σ0 = cov(X,corrected=false)
+    elseif size(Σ0) != (size(X)[2],size(X)[2])
         error("Σ0 must be or nothing or a squared matrix of the same size as dimensions in the system.")
     end
 
@@ -169,7 +185,7 @@ function finiteGaussianMixtureEM(X::Matrix;
             weights[i] = sum(ids)/nCells
             if weights[i] > 0            
                 centers[i] .= mean(X[ids,:],dims=1)[1,:]
-                covariances[i] .= cov(X[ids,:])
+                covariances[i] .= cov(X[ids,:],corrected=false)
             end
         end
         steps += 1
@@ -281,11 +297,20 @@ function finiteGaussianMixture(X::Matrix;
 
     end
 
-    return saveDist, saveIds
+    return GaussianFiniteMixtureModel(k,
+                                Dict([  
+                                        :α=>α,
+                                        :ν0 => ν0,
+                                        :κ0 => κ0,
+                                        :μ0 => μ0,
+                                        :Σ0 => Σ0
+                                    ]),
+                                saveDist,
+                                saveIds)
 end
 
 function infiniteGaussianMixture(X::Matrix;
-    kinit = 1,
+    k = 1,
     initialization::Union{String,Matrix} = "kmeans",
     α = 1,
     ν0 = 1,
@@ -295,8 +320,11 @@ function infiniteGaussianMixture(X::Matrix;
     ignoreSteps::Int = 1000, 
     saveSteps::Int = 1000,
     saveEach::Int = 10,
-    verbose = false
+    verbose = false,
+    seed = 0
     )
+
+    Random.seed!(seed)
 
     nCells, dimensions = size(X)
 
@@ -307,12 +335,30 @@ function infiniteGaussianMixture(X::Matrix;
     end 
 
     #Initialization
-    centers,covariances,weights,identities = initializationGaussianMixture(X,kinit,initialization)
+    centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization)
+    #Statistics
+    m = deepcopy(centers)
+    S2 = deepcopy(covariances)
+    n = Int[sum(identities.==i) for i in 1:k]
+    #Hyperparameters
     μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
-
+    #Effective parameters
+    m0 = Float64[]
+    m1 = Float64[]
+    νeff = Float64[]
+    μyeff = Vector{Float64}[]
+    Σyeff = Matrix{Float64}[]
+    for j in 1:k
+        push!(m0,(n[j]+κ0)/(n[j]+κ0+1))
+        push!(m1,((n[j]*κ0)/(n[j]+κ0)+n[j]*κ0)/(n[j]+κ0+1))
+        push!(νeff,n[j]+ν0+1-dimensions)
+        push!(μyeff,(n[j]*m[j]+κ0*μ0)/(n[j]+κ0))
+        aux = (m1[j]*(μ0-m[j])*transpose(μ0-m[j])+n[j]*S2[j]+Σ0)/m0[j]
+        push!(Σyeff,(aux+transpose(aux))/2)
+    end
     #Auxiliar functions
-    p = zeros(nCells,k)
-    votes = fill(0,k) #Auxiliar for sampling from the Dirichlet distributions
+    mnew = zeros(dimensions)
+    w = zeros(k+1)
     vote = fill(0,k) #Auxiliar for sampling from the Dirichlet distributions
 
     saveIds = Vector{Int}[]
@@ -320,39 +366,115 @@ function infiniteGaussianMixture(X::Matrix;
 
     #Loop
     for step in 1:(ignoreSteps+saveSteps)
-        #Sample identities
-        gmlikelihood!(p,X,centers,covariances,weights)
-        votes .= 0 #Reset votes
+
         for i in 1:nCells           
-            vote .= rand(Multinomial(1,@views(p[i,:])))
-            votes .+= vote
-            identities[i] = findfirst(vote.==1)
-        end
-        #Sample parameters
-            #Sample weights
-        weights .= rand(Dirichlet(votes.+α/k))
-        for comp in 1:k
-            ids = identities.==comp 
 
-            if votes[comp] > dimensions #Check if we have enough statistical power to compute the wishart            
+            id = identities[i]
+
+            #Remove sample
+            if n[id] == 1 #Remove component
+                popat!(centers,id)
+                popat!(covariances,id)
+                popat!(weights,id)
+                popat!(m,id)
+                popat!(S2,id)
+                popat!(n,id)
+                popat!(w,id)
+                popat!(m0,id)
+                popat!(m1,id)
+                popat!(νeff,id)
+                popat!(μyeff,id)
+                popat!(Σyeff,id)
+                identities[identities.>id] .-= 1 #Reduce index of components above the removed one
+                k -= 1
+            else #Modify statistics
                 #Statistics
-                m = reshape(mean(X[ids,:],dims=1),dimensions)
-                S2 = cov(@views(X[ids,:]),corrected=false)
-                #Sample covariance
-                neff = votes[comp]+ν0+1
+                mnew .= (n[id]*m[id]-X[i,:])/(n[id]-1)
+                S2[id] .= (n[id]*S2[id] + n[id]*m[id]*transpose(m[id]) - X[i,:]*transpose(X[i,:]))/(n[id]-1) - mnew*transpose(mnew)
+                m[id] .= mnew
+                n[id] -= 1 
+                #Effective parameters
+                m0[id] = (n[id]+κ0)/(n[id]+κ0+1)
+                m1[id] = ((n[id]*κ0)/(n[id]+κ0)+n[id]*κ0)/(n[id]+κ0+1)
+                νeff[id] = n[id]+ν0+1-dimensions
+                μyeff[id] = (n[id]*m[id]+κ0*μ0)/(n[id]+κ0)
+                aux = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
+                Σyeff[id] = (aux+transpose(aux))/2
 
-                Σeff = votes[comp]*S2 + votes[comp]*(centers[comp]-m)*transpose((centers[comp]-m)) + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
-                Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
-                covariances[comp] = rand(InverseWishart(neff,Σeff))
-                #Sample centers
-                μeff = (votes[comp]*m+κ0*μ0)/(votes[comp]+κ0)
-                centers[comp] .= rand(MultivariateNormal(μeff,covariances[comp]/(votes[comp]+κ0)))
-
+                m0[id] = (n[id]+κ0)/(n[id]+κ0+1)
+                m1[id] = ((n[id]*κ0)/(n[id]+κ0)+n[id]*κ0)/(n[id]+κ0+1)
+                νeff[id] = n[id]+ν0+1-dimensions
+                μyeff[id] = (n[id]*m[id]+κ0*μ0)/(n[id]+κ0)
+                Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
+                Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
             end
+
+            #Reassign sample
+            for j in 1:k
+                w[j] = logpdf(MvTDist(νeff[j],μyeff[j],Σyeff[j]/νeff[j]),@views(X[i,:]))+log(n[j]/(nCells+α-1))
+            end
+            w[end] = logpdf(MultivariateNormal(μ0,Σ0),@views(X[i,:]))+log(α/(nCells+α-1))
+            w .-= maximum(w)
+            w = exp.(w)
+            w ./= sum(w)
+            vote = rand(Multinomial(1,w))
+            identities[i] = findfirst(vote.==1)
+
+            #Update statistics
+            id = identities[i]
+            if id == k + 1 #Add component
+                push!(m,X[i,:])
+                push!(S2,zeros(dimensions,dimensions))
+                push!(n,1)
+                push!(centers,copy(μ0))
+                push!(covariances,copy(Σ0))
+                push!(weights,1/nCells)
+                push!(w,0.)
+                push!(m0,(n[id]+κ0)/(n[id]+κ0+1))
+                push!(m1,((n[id]*κ0)/(n[id]+κ0)+n[id]*κ0)/(n[id]+κ0+1))
+                push!(νeff,n[id]+ν0+1-dimensions)
+                push!(μyeff,(n[id]*m[id]+κ0*μ0)/(n[id]+κ0))
+                aux = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
+                push!(Σyeff,(aux+transpose(aux))/2)
+
+                k += 1
+            else #Modify statistics
+                #Statistics
+                mnew .= (n[id]*m[id]+X[i,:])/(n[id]+1)
+                S2[id] = (n[id]*S2[id] + n[id]*m[id]*transpose(m[id]) + X[i,:]*transpose(X[i,:]))/(n[id]+1) - mnew*transpose(mnew)
+                m[id] .= mnew
+                n[id] += 1
+                #Effective parameters
+                m0[id] = (n[id]+κ0)/(n[id]+κ0+1)
+                m1[id] = ((n[id]*κ0)/(n[id]+κ0)+n[id]*κ0)/(n[id]+κ0+1)
+                νeff[id] = n[id]+ν0+1-dimensions
+                μyeff[id] = (n[id]*m[id]+κ0*μ0)/(n[id]+κ0)
+                Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
+                Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
+            end
+
         end
 
         #Save
         if step >= ignoreSteps && step%saveEach == 0
+
+            weights .= rand(Dirichlet(n.+α/k))
+            for comp in 1:k
+
+                if n[comp] > dimensions #Check if we have enough statistical power to compute the wishart            
+                    #Sample covariance
+                    neff = n[comp]+ν0+1
+
+                    Σeff = n[comp]*S2[comp] + κ0*n[comp]/(κ0+n[comp])*(m[comp]-μ0)*transpose(m[comp]-μ0)+Σ0
+                    Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
+                    covariances[comp] = rand(InverseWishart(neff,Σeff))
+                    #Sample centers
+                    μeff = (n[comp]*m[comp]+κ0*μ0)/(n[comp]+κ0)
+                    centers[comp] .= rand(MultivariateNormal(μeff,covariances[comp]/(n[comp]+κ0)))
+                end
+
+            end
+
             #rel = relabeling(identities,identitiesRef)
             dist = MixtureModel(MultivariateNormal[[MultivariateNormal(copy(i),copy(j)) for (i,j) in zip(centers,covariances)]...],copy(weights))
             push!(saveDist,deepcopy(dist))
@@ -366,5 +488,16 @@ function infiniteGaussianMixture(X::Matrix;
 
     end
 
-    return saveDist, saveIds
+    return GaussianInfiniteMixtureModel(
+                                Dict([  
+                                        :α=>α,
+                                        :ν0 => ν0,
+                                        :κ0 => κ0,
+                                        :μ0 => μ0,
+                                        :Σ0 => Σ0
+                                    ]),
+                                saveDist,
+                                saveIds)
+
 end
+
