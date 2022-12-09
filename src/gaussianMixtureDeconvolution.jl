@@ -244,16 +244,15 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
     #Loop
     for step in 1:(ignoreSteps+saveSteps)
 
-        # Sample new noise
+        #Sample noise distribution
+        nSample = rand(nRange)
+        centersN = [i.μ for i in Y.samples[nSample].components]
+        covariancesN = [i.Σ for i in Y.samples[nSample].components]
+        weightsN = Y.samples[nSample].prior.p        
         kT = length(centers)
         kN = length(centersN)
-        println(kT," ",kN)
-        centersN = [i.μ for i in Y.samples[1].components]
-        covariancesN = [i.Σ for i in Y.samples[1].components]
-        weightsN = Y.samples[1].prior.p
-        identitiesN = copy(identities)
         p = zeros(nCells,kT*kN)
-        w = zeros(kT*kN+k)
+        w = zeros(kT*kN+kN)
         
         #Statistics
         m = fill(zeros(dimensions),kN,kT)
@@ -267,7 +266,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
             pos = lin2cartesian(findfirst(vote.==1),kN,kT)
             # identities[i] = pos[2]
             identitiesN[i] = pos[1]
-            n[pos[1],pos[2]] += 1
+            n[pos[1],identities[i]] += 1 #Keep target base, but change noise base
         end
 
         #Effective parameters
@@ -294,7 +293,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
             end
         end
 
-        println("S2",S2,"\n Σyeff",Σyeff,"\n m1",m1,"\n m0",m0,"\n")
+        # println("S2",S2,"\n Σyeff",Σyeff,"\n m1",m1,"\n m0",m0,"\n")
 
         for i in 1:nCells           
 
@@ -302,7 +301,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
             idN = identitiesN[i]
 
             #Remove sample
-            println(n,n[idN,id],"/",sum(n),(idN,id))
+            # println(n,sum(n,dims=1),n[idN,id],"/",sum(n),(idN,id))
             if sum(n[:,id]) == 1 #Remove component
                 popat!(centers,id)
                 popat!(covariances,id)
@@ -318,6 +317,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
                 Σyeff = Σyeff[:,id .!= 1:kT]
                 identities[identities.>id] .-= 1 #Reduce index of components above the removed one
                 kT -= 1
+                # println("Component removed")
             else #Modify statistics
                 #Statistics
                 if n[idN,id] == 1
@@ -342,25 +342,26 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
             for j in 1:kN
                 for k in 1:kT
                     try
-                        w[cartesian2lin(j,k,kN,kT)] = logpdf(MvTDist(νeff[j,k],μyeff[j,k],Σyeff[j,k]/νeff[j,k]),@views(X[i,:]))+log(n[j,k]/(nCells+α-1))
+                        w[cartesian2lin(j,k,kN,kT+1)] = logpdf(MvTDist(νeff[j,k],μyeff[j,k],Σyeff[j,k]/νeff[j,k]),@views(X[i,:]))+log(n[j,k]/(nCells+α-1))
                     catch
-                        println("S2",S2[j,k],"\n Σyeff",Σyeff[j,k],"\n m1",m1[j,k],"\n m0",m0[j,k],"\n")
+                        error((j,k,cartesian2lin(j,k,kN,kT+1)),"\n S2",S2,"\n Σyeff",Σyeff,"\n m1",m1,"\n m0",m0,"\n")
                     end
                 end
+                w[cartesian2lin(j,kT+1,kN,kT+1)] = logpdf(MultivariateNormal(μ0+centersN[kN],Σ0+covariancesN[kN]),@views(X[i,:]))+log(α/(nCells+α-1))
             end
-            w[end] = logpdf(MultivariateNormal(μ0,Σ0),@views(X[i,:]))+log(α/(nCells+α-1))
             w .-= maximum(w)
             w = exp.(w)
             w ./= sum(w)
             vote = rand(Multinomial(1,w))
-            aux = lin2cartesian(findfirst(vote.==1),kN,kT)
+            aux = lin2cartesian(findfirst(vote.==1),kN,kT+1)
             identities[i] = aux[2]
             identitiesN[i] = aux[1]
 
             #Update statistics
             id = identities[i]
             idN = identitiesN[i]
-            if id == k + 1 #Add component
+            if id == kT + 1 #Add component
+                # println("Component added")
                 # Add new data
                 m = hcat(m,fill(X[i,:],kN,1))
                 S2 = hcat(S2,fill(zeros(dimensions,dimensions),kN,1))
@@ -391,7 +392,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
                     Σyeff[j,k] = (aux+transpose(aux))/2
                 end
         
-                println("----S2",S2,"\n Σyeff",Σyeff,"\n m1",m1,"\n m0",m0,"\n")
+                # println("----S2",S2,"\n Σyeff",Σyeff,"\n m1",m1,"\n m0",m0,"\n")
 
                 kT += 1
             else #Modify statistics
@@ -409,32 +410,34 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
                 Σyeff[idN,id] = (Σyeff[idN,id]+transpose(Σyeff[idN,id]))/2 #Solve problem with hermitian
             end
 
-            println("Reach end")
-
         end
 
         #Save
         if step >= ignoreSteps && step%saveEach == 0
 
+            push!(saveN,nSample)
+
         #Sample parameters
             #Sample weights
+            votesK = reshape(sum(n,dims=1),kT)
             weights .= rand(Dirichlet(votesK.+α/k))
-            for comp in 1:k
+            for comp in 1:kT
                 idsT = identities.==comp
     
-                votesK = sum(n,axis=1)
                 if votesK[comp] > dimensions #Check if we have enough statistical power to compute the wishart  
     
                     #Sample covariance
-                    m2 .= 0
-                    S2 .= 0   
+                    m2 = zeros(dimensions,dimensions)
+                    S2 = zeros(dimensions,dimensions)
                     for compN in 1:kN
                         idsN = identitiesN.==compN
                         ids = idsN .& idsT
                         #Statistics
-                        aux = (reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN]-centers[comp])
-                        m2 .+= votes[cartesian2lin(comp,compN,k,kN)]*aux*transpose(aux)
-                        S2 .+= votes[cartesian2lin(comp,compN,k,kN)]*(cov(@views(X[ids,:]),corrected=false)-covariancesN[compN])
+                        if sum(ids) > 0
+                            aux = (reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN]-centers[comp])
+                            m2 .+= n[compN,comp]*aux*transpose(aux)
+                            S2 .+= n[compN,comp]*(cov(@views(X[ids,:]),corrected=false)-covariancesN[compN])
+                        end
                     end
                     # println(votes,m/votesK[comp],S2/votesK[comp])
                     for i in 1:dimensions
@@ -445,19 +448,22 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
                     neff = votesK[comp]+ν0+1
     
                     Σeff = S2 + m2 + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
+                    # println(S2, m2, κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)), Σ0)
                     Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
                     covariances[comp] = rand(InverseWishart(neff,Σeff))
                     #Sample centers
-                    m .= 0
-                    S2 .= 0   
+                    m = zeros(dimensions)
+                    S2 = zeros(dimensions,dimensions)
                     for compN in 1:kN
                         idsN = identitiesN.==compN
                         ids = idsN .& idsT
                         s = inv(covariances[comp]+covariancesN[compN])
                         #Statistics
                         # println((votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0))
-                        m .+= s*(votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0)
-                        S2 .+= s*(votes[cartesian2lin(comp,compN,k,kN)]+κ0)
+                        if sum(ids) > 0
+                            m .+= s*(n[compN,comp]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0)
+                            S2 .+= s*(n[compN,comp]+κ0)
+                        end
                     end
                     S2 = inv(S2)
                     m = S2*m
@@ -480,7 +486,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
 
     end
 
-    return GaussianInfiniteMixtureModel(
+    return GaussianInfiniteMixtureModelDeconvolved(
                                 Dict([  
                                         :α=>α,
                                         :ν0 => ν0,
@@ -489,6 +495,9 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
                                         :Σ0 => Σ0
                                     ]),
                                 saveDist,
-                                saveIds)
+                                saveIds,
+                                saveN,
+                                Y
+                                )
 
 end
