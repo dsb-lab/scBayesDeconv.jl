@@ -450,7 +450,11 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
                     Σeff = S2 + m2 + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
                     # println(S2, m2, κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)), Σ0)
                     Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
-                    covariances[comp] = rand(InverseWishart(neff,Σeff))
+                    try
+                        covariances[comp] = rand(InverseWishart(neff,Σeff))
+                    catch
+                        println("WARNING: Sampling has failed for this covariance matrix. In general this will not be a problem if only happens in rare ocassions.")
+                    end
                     #Sample centers
                     m = zeros(dimensions)
                     S2 = zeros(dimensions,dimensions)
