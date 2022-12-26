@@ -470,6 +470,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
                         end
                     end
                     S2 = inv(S2)
+                    S2 = (S2+transpose(S2))/2
                     m = S2*m
                     centers[comp] .= rand(MultivariateNormal(m,S2))
     
