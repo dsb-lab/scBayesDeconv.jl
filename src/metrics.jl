@@ -18,7 +18,7 @@ module metrics
         return c
     end
 
-    function MISE(model::GaussianMixtureModel,f2::Function;box=[-100. 100.],d=.1,samples=1:length(f1.samples))
+    function MISE(model::GaussianMixtureModel,f2;box=[-100. 100.],d=.1,samples=1:length(f1.samples))
 
         mises = Float64[]
         for i in samples
@@ -30,7 +30,7 @@ module metrics
     
     end
 
-    function MISE(f1::Function,f2::Function;box,d)
+    function MISE(f1,f2;box,d)
 
         mise = 0
         dd = d^size(box)[1]
@@ -45,7 +45,7 @@ module metrics
     
     end
 
-    function MIO(model::GaussianMixtureModel,f2::Function;box=[-100. 100.],d=.1,samples=1:length(f1.samples))
+    function MIO(model::GaussianMixtureModel,f2;box=[-100. 100.],d=.1,samples=1:length(f1.samples))
 
         mios = Float64[]
         for i in samples
@@ -57,7 +57,7 @@ module metrics
     
     end
 
-    function MIO(f1::Function,f2::Function;box=box,d=.1)
+    function MIO(f1,f2;box=box,d=.1)
 
         mio = 1
         dd = d^size(box)[1]
@@ -72,7 +72,7 @@ module metrics
     
     end
 
-    function KolmogorovSmirnov(f1::GaussianMixtureModel,f2::Function;nSamples=1000)
+    function KolmogorovSmirnov(f1::GaussianMixtureModel,f2;nSamples=1000)
 
         ks = Float64[]
         for i in samples
