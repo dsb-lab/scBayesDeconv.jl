@@ -2,6 +2,7 @@ module metrics
 
     import ..scBayesDeconv: GaussianMixtureModel
     import HypothesisTests: ExactOneSampleKSTest
+    using Distributions
 
     function decompose_(n,s)
 
@@ -71,18 +72,5 @@ module metrics
         return mio_
     
     end
-
-    function kolmogorovSmirnov(f1::GaussianMixtureModel,f2;nSamples=1000)
-
-        ks = Float64[]
-        for i in samples
-            xx = rand(model.samples[i],nSamples)
-            push!(mios,ExactOneSampleKSTest(xx,f2))
-        end
-    
-        return ks
-    
-    end
-
 
 end
