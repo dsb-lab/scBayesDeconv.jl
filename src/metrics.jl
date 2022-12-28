@@ -18,61 +18,61 @@ module metrics
         return c
     end
 
-    function MISE(model::GaussianMixtureModel,f2;box=[-100. 100.],d=.1,samples=1:length(f1.samples))
+    function mise(model::GaussianMixtureModel,f2;box=[-100. 100.],d=.1,samples=1:length(model.samples))
 
         mises = Float64[]
         for i in samples
-            f1(x) = pdf(model.samples[i],x)
-            push!(mises,MISE(ft,f2,box=box,d=d))
+            ft(x) = pdf(model.samples[i],x)
+            push!(mises,mise(ft,f2,box=box,d=d))
         end
     
-        return mios
+        return mises
     
     end
 
-    function MISE(f1,f2;box,d)
+    function mise(f1,f2;box,d)
 
-        mise = 0
+        mise_ = 0
         dd = d^size(box)[1]
         dx = (box[:,2]-box[:,1])/d
         s = Int.(round.(dx))
         for i in 0:prod(s)
             point = decompose_(i,s).*d .+box[:,1]
-            mise += (f1(point)-f2(point))^2*dd/2
+            mise_ += (f1(point)-f2(point))^2*dd/2
         end
     
-        return mise
+        return mise_
     
     end
 
-    function MIO(model::GaussianMixtureModel,f2;box=[-100. 100.],d=.1,samples=1:length(f1.samples))
+    function mio(model::GaussianMixtureModel,f2;box=[-100. 100.],d=.1,samples=1:length(model.samples))
 
         mios = Float64[]
         for i in samples
-            f1(x) = pdf(model.samples[i],x)
-            push!(mios,MIO(ft,f2,box=box,d=d))
+            ft(x) = pdf(model.samples[i],x)
+            push!(mios,mio(ft,f2,box=box,d=d))
         end
     
         return mios
     
     end
 
-    function MIO(f1,f2;box=box,d=.1)
+    function mio(f1,f2;box=box,d=.1)
 
-        mio = 1
+        mio_ = 1
         dd = d^size(box)[1]
         dx = (box[:,2]-box[:,1])/d
         s = Int.(round.(dx))
         for i in 0:prod(s)
             point = decompose_(i,s).*d .+box[:,1]
-            mio -= abs(f1(point)-f2(point))*dd/2
+            mio_ -= abs(f1(point)-f2(point))*dd/2
         end
     
-        return mio
+        return mio_
     
     end
 
-    function KolmogorovSmirnov(f1::GaussianMixtureModel,f2;nSamples=1000)
+    function kolmogorovSmirnov(f1::GaussianMixtureModel,f2;nSamples=1000)
 
         ks = Float64[]
         for i in samples
