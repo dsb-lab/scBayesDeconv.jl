@@ -7,14 +7,16 @@ module scBayesDeconv
     kmeans_ = MLJ.@load KMeans pkg=Clustering verbosity=0
 
     #Exported functions
-    export GaussianFiniteMixtureModel, GaussianInfiniteMixtureModel, GaussianFiniteMixtureModelDeconvolved, GaussianInfiniteMixtureModelDeconvolved
+    export GaussianMixtureModel, GaussianFiniteMixtureModel, GaussianInfiniteMixtureModel, GaussianFiniteMixtureModelDeconvolved, GaussianInfiniteMixtureModelDeconvolved
     export finiteGaussianMixtureEM, finiteGaussianMixture, infiniteGaussianMixture, finiteGaussianMixtureDeconvolution, infiniteGaussianMixtureDeconvolution
+    export newmannDeconvolution
+    # export MIO, MISE
 
     #Files
-    include("metrics.jl")
     include("structures.jl")
     include("gaussianMixture.jl")
     include("gaussianMixtureDeconvolution.jl")
     include("newmann.jl")
+    include("metrics.jl")
     
 end
