@@ -226,7 +226,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
     #Initialization
     centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization)
     #Hyperparameters
-    μ0,Σ0 = scBayesDeconv.initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
+    μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
 
     #Auxiliar functions
     vote = fill(0,k) #Auxiliar for sampling from the Dirichlet distributions
@@ -289,10 +289,10 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
             n = zeros(Int,kN,kT)
 
             #Sample new noise identities
-            scBayesDeconv.gmlikelihoodConvolution!(p,X,centers,covariances,weights,centersN,covariancesN,weightsN)
+            gmlikelihoodConvolution!(p,X,centers,covariances,weights,centersN,covariancesN,weightsN)
             for i in 1:nCells           
                 vote = rand(Multinomial(1,@views(p[i,:])))
-                pos = scBayesDeconv.lin2cartesian(findfirst(vote.==1),kN,kT)
+                pos = lin2cartesian(findfirst(vote.==1),kN,kT)
                 # identities[i] = pos[2]
                 identitiesN[i] = pos[1]
                 n[pos[1],identities[i]] += 1 #Keep target base, but change noise base
@@ -373,19 +373,19 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixt
             for j in 1:kN
                 for k in 1:kT
                     try
-                        w[scBayesDeconv.cartesian2lin(j,k,kN,kT+1)] = logpdf(MvTDist(νeff[j,k],μyeff[j,k],Σyeff[j,k]/νeff[j,k]),@views(X[i,:]))+log(n[j,k]/(nCells+α-1))
+                        w[cartesian2lin(j,k,kN,kT+1)] = logpdf(MvTDist(νeff[j,k],μyeff[j,k],Σyeff[j,k]/νeff[j,k]),@views(X[i,:]))+log(n[j,k]/(nCells+α-1))
                     catch
-                        error((j,k,scBayesDeconv.cartesian2lin(j,k,kN,kT+1)),"\n S2",S2,"\n Σyeff",Σyeff,"\n m1",m1,"\n m0",m0,"\n")
+                        error((j,k,cartesian2lin(j,k,kN,kT+1)),"\n S2",S2,"\n Σyeff",Σyeff,"\n m1",m1,"\n m0",m0,"\n")
                     end
                 end
-                w[scBayesDeconv.cartesian2lin(j,kT+1,kN,kT+1)] = logpdf(MultivariateNormal(μ0+centersN[kN],Σ0+covariancesN[kN]),@views(X[i,:]))+log(α/(nCells+α-1))
+                w[cartesian2lin(j,kT+1,kN,kT+1)] = logpdf(MultivariateNormal(μ0+centersN[kN],Σ0+covariancesN[kN]),@views(X[i,:]))+log(α/(nCells+α-1))
             end
             w .-= maximum(w)
             w = exp.(w)
             w ./= sum(w)
             vote = rand(Multinomial(1,w))
-            aux = scBayesDeconv.lin2cartesian(findfirst(vote.==1),kN,kT+1)
-            identities[i] = if aux[2] == kT+1 identities[i] else aux[2] end
+            aux = lin2cartesian(findfirst(vote.==1),kN,kT+1)
+            identities[i] = aux[2]
             identitiesN[i] = aux[1]
 
             #Update statistics
