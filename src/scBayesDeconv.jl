@@ -18,5 +18,6 @@ module scBayesDeconv
     include("gaussianMixtureDeconvolution.jl")
     include("newmann.jl")
     include("metrics.jl")
+    include("functions.jl")
     
 end
