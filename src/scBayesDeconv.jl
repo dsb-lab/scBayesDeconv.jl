@@ -8,7 +8,7 @@ module scBayesDeconv
 
     #Exported functions
     export GaussianMixtureModel, GaussianFiniteMixtureModel, GaussianInfiniteMixtureModel, GaussianFiniteMixtureModelDeconvolved, GaussianInfiniteMixtureModelDeconvolved
-    export finiteGaussianMixtureEM, finiteGaussianMixture, infiniteGaussianMixture, finiteGaussianMixtureDeconvolution, infiniteGaussianMixtureDeconvolution
+    export finiteGaussianMixtureEM, finiteGaussianMixture, infiniteGaussianMixture, finiteGaussianMixtureDeconvolution, finiteGaussianMixtureDeconvolution2, infiniteGaussianMixtureDeconvolution
     export newmannDeconvolution
     export sample
     # export MIO, MISE
