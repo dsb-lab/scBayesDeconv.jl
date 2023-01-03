@@ -273,7 +273,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianMixtureModel
 
         if true#step == 1
             #Sample noise distribution
-            nSample = rand(nRange); nSample = 1
+            nSample = rand(nRange);
             centersN = [i.μ for (j,i) in enumerate(Y.samples[nSample].components) if Y.samples[nSample].prior.p[j] > prune]
             covariancesN = [i.Σ for (j,i) in enumerate(Y.samples[nSample].components) if Y.samples[nSample].prior.p[j] > prune]
             weightsN = Y.samples[nSample].prior.p[Y.samples[nSample].prior.p .> prune]
