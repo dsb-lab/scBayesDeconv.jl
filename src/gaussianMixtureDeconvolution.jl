@@ -589,17 +589,10 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianMixtureModel
                             S2_ .+= s*(n[compN,comp]+κ0)
                         end
                     end
-<<<<<<< HEAD
                     S2_ .= inv(S2_)
                     S2_ .= (S2_+transpose(S2_))/2
                     m_ .= S2_*m_
                     centers[comp] .= rand(MultivariateNormal(m_,S2_))
-=======
-                    S2 = inv(S2)
-                    m = S2*m
-                    centers[comp] .= rand(MultivariateNormal(m,S2))
->>>>>>> parent of d76c468... infiniteMixture solve sampling herminitan error
-    
                 end
             end
     
