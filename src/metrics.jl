@@ -46,6 +46,19 @@ module metrics
     
     end
 
+    function mio(model1::GaussianMixtureModel,model2::GaussianMixtureModel;box=[-100. 100.],d=.1,samples1=1:length(model1.samples),samples2=1:length(model2.samples),nSamples=100)
+
+        mios = Float64[]
+        for (i,j) in zip(rand(samples1,nSamples),rand(samples2,nSamples))
+            ft1(x) = pdf(model1.samples[i],x)
+            ft2(x) = pdf(model2.samples[j],x)
+            push!(mios,scBayesDeconv.metrics.mio(ft1,ft2,box=box,d=d))
+        end
+    
+        return mios
+    
+    end
+
     function mio(model::GaussianMixtureModel,f2;box=[-100. 100.],d=.1,samples=1:length(model.samples))
 
         mios = Float64[]
