@@ -1,4 +1,6 @@
 *.csv
 *.jpg
 *.png
+*.pdf
 docs/build/*
+*.sh

@@ -6,7 +6,11 @@ using Documenter, scBayesDeconv
 makedocs(sitename="scBayesDeconv.jl",
 pages = [
     "Usage" => "index.md",
-    "Examples" => [],
+    "Examples" => ["examples/Artificial Convolutions.md",
+                    "examples/Comparison with FFT deconvolution.md",
+                    "examples/Real data artificial convolution.md",
+                    "examples/Real data iterated deconvolution.md"
+                    ],
     "API.md"
 ],
 format = Documenter.HTML(prettyurls = false)
