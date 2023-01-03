@@ -2,12 +2,6 @@
 
 ## Bayesian models
 
-```@docs
-FlowCytometryGate
-FlowCytometryControl
-FlowCytometryExperiment
-```
-
 ## Other deconvolution models
 
 ```@docs
