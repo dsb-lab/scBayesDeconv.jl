@@ -9,7 +9,7 @@ module scBayesDeconv
     #Exported functions
     export GaussianMixtureModel, GaussianFiniteMixtureModel, GaussianInfiniteMixtureModel, GaussianFiniteMixtureModelDeconvolved, GaussianInfiniteMixtureModelDeconvolved
     export finiteGaussianMixtureEM, finiteGaussianMixture, infiniteGaussianMixture, finiteGaussianMixtureDeconvolution, infiniteGaussianMixtureDeconvolution2, infiniteGaussianMixtureDeconvolution
-    export newmannDeconvolution
+    export neumannDeconvolution
     export sample
     # export MIO, MISE
 
@@ -17,7 +17,7 @@ module scBayesDeconv
     include("structures.jl")
     include("gaussianMixture.jl")
     include("gaussianMixtureDeconvolution.jl")
-    include("newmann.jl")
+    include("neumann.jl")
     include("metrics.jl")
     include("functions.jl")
     
