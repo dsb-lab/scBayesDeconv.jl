@@ -197,7 +197,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
                                 Y)
 end
 
-function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianInfiniteMixtureModel;
+function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianMixtureModel;
     k = 1,
     initialization::Union{String,Matrix} = "kmeans",
     α = 1,
