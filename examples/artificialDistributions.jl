@@ -115,7 +115,7 @@ catch
 end
 
 mioNeumann(x,y,dt) = 1-sum(abs.(pdf.(dt,x).-y)*(x[2]-x[1]))/2
-for N in [100,1000,3000]
+for N in [100,1000,10000]
     for snr in [10,1]
         for (i,dn) in pairs(dNoise)
 
@@ -151,11 +151,11 @@ for N in [100,1000,3000]
                     miosConvolution = scBayesDeconv.metrics.mio(fitConvolution,ft)
 
                     yNeumann, xNeumann = neumannDeconvolution(n,c)
-                    mionewman = mioNeumann(xNeumann,yNeumann,dt)
+                    mioneumann = mioNeumann(xNeumann,yNeumann,dt)
 
                     append!(resultsDeconvolution,
                         ["Noise"=>i,"Target"=>j,"Ratio"=>snr,"Size"=>N,"MIO_mean"=>round(mean(mios),digits=4),"MIO_std"=>round(std(mios),digits=4),
-                        "MIO_Convolution_mean"=>round(mean(miosConvolution),digits=4),"MIO_Convolution_std"=>round(std(miosConvolution),digits=4),"MIO_Neumann"=>round(mionewman,digits=4)]
+                        "MIO_Convolution_mean"=>round(mean(miosConvolution),digits=4),"MIO_Convolution_std"=>round(std(miosConvolution),digits=4),"MIO_Neumann"=>round(mioneumann,digits=4)]
                     )
                     CSV.write("Deconvolution.csv", string.(resultsDeconvolution))
 
@@ -171,7 +171,7 @@ end
 p1 = plot([0,1],[0,1],color="black",label="")
 color = [Dict([100=>"lightblue",1000=>"blue",3000=>"black"])[i] for i in resultsDeconvolution[!,"Size"]]
 style = [Dict([10=>:square,1=>:circle])[i] for i in resultsDeconvolution[!,"Ratio"]]
-scatter!(p1,resultsDeconvolution[!,"MIO_mean"],resultsDeconvolution[!,"MIO_Newmann"],color=color,markershape=style,xlabel="MIO_Bayesian_Deconvolution",ylabel="MIO_FFT_Deconvolution",label="")
+scatter!(p1,resultsDeconvolution[!,"MIO_mean"],resultsDeconvolution[!,"MIO_Neumannn"],color=color,markershape=style,xlabel="MIO_Bayesian_Deconvolution",ylabel="MIO_FFT_Deconvolution",label="")
 xlims!(0,1)
 ylims!(0,1)
 
@@ -191,7 +191,7 @@ plot(p1, size=(500,500))
 p1 = plot([0,1],[0,1],color="black",label="")
 color = [Dict([100=>"lightblue",1000=>"orange",3000=>"green"])[i] for i in resultsDeconvolution[!,"Size"]]
 style = [Dict([10=>:square,1=>:cross])[i] for i in resultsDeconvolution[!,"Ratio"]]
-scatter!(p1,resultsDeconvolution[!,"MIO_Newmann"],resultsDeconvolution[!,"MIO_Convolution_mean"],color=color,markershape=style,xlabel="MIO_FFT_Deconvolution",ylabel="MIO_Bayesian_Convolution",label="")
+scatter!(p1,resultsDeconvolution[!,"MIO_Neumannn"],resultsDeconvolution[!,"MIO_Convolution_mean"],color=color,markershape=style,xlabel="MIO_FFT_Deconvolution",ylabel="MIO_Bayesian_Convolution",label="")
 xlims!(0,1)
 ylims!(0,1)
 
