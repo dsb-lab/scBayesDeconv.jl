@@ -6,6 +6,7 @@ version = "0.1.0"
 [deps]
 Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Hungarian = "e91730f6-4275-51fb-a7a0-7064cfbd3b39"
 HypothesisTests = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
 MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"

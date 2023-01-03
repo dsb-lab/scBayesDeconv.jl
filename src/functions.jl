@@ -1,3 +1,23 @@
+"""
+    function sample(model;distribution=:Target)
+
+Function to sample a realization from a BayesianMixtureModel.
+
+Arguments:
+
+ - **model::BayesianMixtureModel**: Bayesian Mixture Model from which to draw samples.
+
+Keyword Args:
+
+ - **distribution**: Which distribution to draw samples from.
+        - :Target Samples from target distribution in MixtureModels and from the deconvolution in MixtureModelDeconvolutions.
+        - :Noise Samples from noise distributinn in MixtureModelDeconvolutions.
+        - :Convolution Samples from convolved distribution in MixtureModelDeconvolutions.
+
+Return 
+
+ A MixtureModel realization from the bayesian sampling of the model.
+"""
 function sample(model;distribution=:Target)
 
     if distribution == :Target
