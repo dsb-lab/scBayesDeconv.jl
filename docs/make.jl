@@ -5,7 +5,8 @@ using Documenter, scBayesDeconv
 
 makedocs(sitename="scBayesDeconv.jl",
 pages = [
-    "Home" => "index.md",
+    "Usage" => "index.md",
+    "Examples" => [],
     "API.md"
 ],
 format = Documenter.HTML(prettyurls = false)

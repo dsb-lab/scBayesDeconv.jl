@@ -2,6 +2,15 @@
 
 ## Bayesian models
 
+```@docs
+finiteGaussianMixture
+infiniteGaussianMixture
+```
+
+```@docs
+finiteGaussianMixtureDeconvolution
+infiniteGaussianMixtureDeconvolution
+```
 ## Other deconvolution models
 
 ```@docs
@@ -34,6 +43,3 @@ which makes de metric bounded as ``MIO \in(0,1)``, being 1 is the distributions 
 ```@docs
 scBayesDeconv.metrics.mio
 ```
-
-## Visualization
-

@@ -215,6 +215,46 @@ function gmIdentitiesProbability!(p::Matrix,X::Matrix,centers::Matrix,covariance
     return
 end
 
+"""
+    finiteGaussianMixture(X::Matrix;
+        k::Int,
+        initialization::Union{String,Matrix} = "kmeans",
+        α = 1,
+        ν0 = 1,
+        κ0 = 0.001,
+        μ0 = nothing,
+        Σ0 = nothing,
+        ignoreSteps::Int = 1000, 
+        saveSteps::Int = 1000,
+        saveEach::Int = 10,
+        verbose = false
+        )
+
+Function to fit a finite mixture model to data.
+
+Arguments:
+
+ - **X::Matrix**: Matrix with data to be fitted as (realizations, dimensions).
+
+Keyword Arguments:
+
+ - **k::Int**: Number of components of the mixture.
+ - **initialization::Union{String,Matrix} = "kmeans"**: Method to initializate the mixture parameters. 
+ - **α = 1**: Hyperparameter of the Dirichlet distribution. The higher, the more probable that a cell will be assigned to another distribution.
+ - **ν0 = 1**: Hyperparameter of the InverseWishart distribution. The highler, the more wight has the pior InverseWishart.
+ - **κ0 = 0.001**: Hyperparameter of the Normal prior distribution. The higher, the more focussed will be the prior Normal around the mean.
+ - **μ0 = nothing**: Hyperparameter of indicating the mean of the Normal. If nothing it will be estimated.
+ - **Σ0 = nothing**: Hyperparameter indicating the prior Covariance distribution of the model. If nothing it will be estimated.
+ - **ignoreSteps::Int = 1000**: Number of steps to perform before saving realizations.
+ - **saveSteps::Int = 1000**: Number of steps to perform from which we will save samples.
+ - **saveEach::Int = 10**: Number of steps to take before saving a sample. 
+ - **verbose = false**: Is to show progress of the fitting.
+ - **seed = 0**: Seed of the random generator.
+
+Return 
+
+A GaussianFiniteMixtureModel with the sampling of the bayesian model.
+"""
 function finiteGaussianMixture(X::Matrix;
     k::Int,
     initialization::Union{String,Matrix} = "kmeans",
@@ -226,8 +266,11 @@ function finiteGaussianMixture(X::Matrix;
     ignoreSteps::Int = 1000, 
     saveSteps::Int = 1000,
     saveEach::Int = 10,
-    verbose = false
+    verbose = false,
+    seed = 0
     )
+
+    Random.seed!(seed)
 
     nCells, dimensions = size(X)
 
@@ -309,6 +352,47 @@ function finiteGaussianMixture(X::Matrix;
                                 saveIds)
 end
 
+"""
+    infiniteGaussianMixture(X::Matrix;
+        k::Int,
+        initialization::Union{String,Matrix} = "kmeans",
+        α = 1,
+        ν0 = 1,
+        κ0 = 0.001,
+        μ0 = nothing,
+        Σ0 = nothing,
+        ignoreSteps::Int = 1000, 
+        saveSteps::Int = 1000,
+        saveEach::Int = 10,
+        verbose = false,
+        seed = 0
+        )
+
+Function to fit a infinite mixture model to data.
+
+Arguments:
+
+ - **X::Matrix**: Matrix with data to be fitted as (realizations, dimensions).
+
+Keyword Arguments:
+
+ - **k::Int**: Number of components of the mixture to start with.
+ - **initialization::Union{String,Matrix} = "kmeans"**: Method to initializate the mixture parameters. 
+ - **α = 1**: Hyperparameter of the Dirichlet distribution. The higher, the more probable that a cell will be assigned to another distribution.
+ - **ν0 = 1**: Hyperparameter of the InverseWishart distribution. The highler, the more wight has the pior InverseWishart.
+ - **κ0 = 0.001**: Hyperparameter of the Normal prior distribution. The higher, the more focussed will be the prior Normal around the mean.
+ - **μ0 = nothing**: Hyperparameter of indicating the mean of the Normal. If nothing it will be estimated.
+ - **Σ0 = nothing**: Hyperparameter indicating the prior Covariance distribution of the model. If nothing it will be estimated.
+ - **ignoreSteps::Int = 1000**: Number of steps to perform before saving realizations.
+ - **saveSteps::Int = 1000**: Number of steps to perform from which we will save samples.
+ - **saveEach::Int = 10**: Number of steps to take before saving a sample. 
+ - **verbose = false**: Is to show progress of the fitting.
+ - **seed = 0**: Seed of the random generator.
+
+Return 
+
+A GaussianInfiniteMixtureModel with the sampling of the bayesian model.
+"""
 function infiniteGaussianMixture(X::Matrix;
     k = 1,
     initialization::Union{String,Matrix} = "kmeans",
