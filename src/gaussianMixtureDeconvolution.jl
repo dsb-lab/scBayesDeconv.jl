@@ -278,8 +278,8 @@ Keyword Arguments:
  - **verbose = false**: Is to show progress of the fitting.
  - **seed = 0**: Seed of the random generator.
  - **prune = 0.1**: Cutoff to remove any basis from the noise distribution that is below this weight. 
- As infinite mixtures may have many basis that are only allocated to ver few cells (starting clusters) during the creation of new clusters,
- they do not realy contribute to the effective distribution but increase substantially the number of call to the likelihood function that is one of the most costly steps.
+As infinite mixtures may have many basis that are only allocated to ver few cells (starting clusters) during the creation of new clusters,
+they do not realy contribute to the effective distribution but increase substantially the number of call to the likelihood function that is one of the most costly steps.
 Pruning unimportant basis can highly reduce the computation of the convolved model.
 
 Return 
