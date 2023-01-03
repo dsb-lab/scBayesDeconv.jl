@@ -36,7 +36,7 @@ module metrics
      - **samples=1:length(model.samples)**: Samples from which to draw from the Bayesian model to compare agains the function.
 
     Return 
-
+    
     The MISE values for each iteration.
     """
     function mise(model::GaussianMixtureModel,f2;box=[-100. 100.],d=.1,samples=1:length(model.samples))
