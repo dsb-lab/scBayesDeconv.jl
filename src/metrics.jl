@@ -180,7 +180,7 @@ module metrics
         s = Int.(round.(dx))
         for i in 0:prod(s)
             point = decompose_(i,s).*d .+box[:,1]
-            mio_ -= abs(f1(point)-f2(point))*dd/2
+            mio_ -= sum(abs.(f1(point).-f2(point))*dd/2)
         end
     
         return mio_
