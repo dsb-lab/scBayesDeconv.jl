@@ -259,7 +259,7 @@ function finiteGaussianMixture(X::Matrix;
     k::Int,
     initialization::Union{String,Matrix} = "kmeans",
     α = 1,
-    ν0 = 1,
+    ν0 = size(X)[2],
     κ0 = 0.001,
     μ0 = nothing,
     Σ0 = nothing,
@@ -318,6 +318,7 @@ function finiteGaussianMixture(X::Matrix;
                 Σeff = votes[comp]*S2 + votes[comp]*(centers[comp]-m)*transpose((centers[comp]-m)) + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
                 Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
                 covariances[comp] = rand(InverseWishart(neff,Σeff))
+                covariances[comp] = (covariances[comp]+transpose(covariances[comp]))/2
                 #Sample centers
                 μeff = (votes[comp]*m+κ0*μ0)/(votes[comp]+κ0)
                 centers[comp] .= rand(MultivariateNormal(μeff,covariances[comp]/(votes[comp]+κ0)))
