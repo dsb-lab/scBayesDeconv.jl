@@ -21,7 +21,7 @@ end
 """
     function neumannDeconvolution(noise::Matrix,conv::Matrix,d1=1,d2=1,dw=0.01,w_lims=[-100,100],dx=0.01,x_lims=[-100,100],cut_off=true)
 
-Fast-Fourier method for the deconvolution of two distributions as proposed by (Neumann & Hössjer)[https://www.tandfonline.com/doi/abs/10.1080/10485259708832708]. 
+Fast-Fourier method for the deconvolution of two distributions as proposed by [Neumann & Hössjer](https://www.tandfonline.com/doi/abs/10.1080/10485259708832708). 
 This method as implemented only works for 1D distributions.
 
 Arguments:
