@@ -499,7 +499,8 @@ function infiniteGaussianMixture(X::Matrix;
                 try
                     w[j] = logpdf(MvTDist(νeff[j],μyeff[j],Σyeff[j]/νeff[j]),@views(X[i,:]))+log(n[j]/(nCells+α-1)) 
                 catch
-                    println("Asignation failled.")
+                    println("Asignation failed.")
+                    error(Σyeff[j]/νeff[j])
                 end
             end
             w[end] = logpdf(MultivariateNormal(μ0,Σ0),@views(X[i,:]))+log(α/(nCells+α-1))
