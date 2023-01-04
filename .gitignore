@@ -3,4 +3,5 @@
 *.png
 *.pdf
 docs/build/*
+examples/Data/FlowRepository_FR-FCM-Z2ST_files/*.fcs
 *.sh

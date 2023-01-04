@@ -269,17 +269,17 @@ c = Matrix(transpose(rand(ndist,N))).+Matrix(transpose(rand(tdist,N)));
 nShow=2000
 
 l1 = histogram2d(n[:,1],n[:,2],bins=50,markersize=2,label="noise")
-scatter!(l1,n[1:nShow,1],n[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue")
+# scatter!(l1,n[1:nShow,1],n[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue")
 xlims!(0,40)
 ylims!(0,180)
 
 l2 = histogram2d(t[:,1],t[:,2],bins=50,markersize=2,label="target")
-scatter!(l2,t[1:nShow,1],t[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue")
+# scatter!(l2,t[1:nShow,1],t[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue")
 xlims!(0,40)
 ylims!(0,180)
 
 l3 = histogram2d(c[:,1],c[:,2],bins=50,markersize=2,label="convolution")
-scatter!(l3,c[1:nShow,1],c[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue")
+# scatter!(l3,c[1:nShow,1],c[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue")
 xlims!(0,40)
 ylims!(0,180)
 
@@ -305,20 +305,25 @@ dn = infiniteGaussianMixture(n);
 dt = infiniteGaussianMixtureDeconvolution(c,dn);
 ```
 
+    WARNING: Sampling has failed for this covariance matrix. In general this will not be a problem if only happens in rare ocassions.
+
+
 
 ```julia
+nShow = 1000
+
 l1 = histogram2d(n[:,1],n[:,2],bins=50,markersize=2,label="noise")
-scatter!(l1,n[:,1],n[:,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue",title="Noise")
+# scatter!(l1,n[1:nShow,1],n[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue",title="Noise")
 xlims!(0,40)
 ylims!(0,180)
 
 l2 = histogram2d(t[:,1],t[:,2],bins=50,markersize=2,label="target")
-scatter!(l2,t[:,1],t[:,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue",title="Target")
+# scatter!(l2,t[1:nShow,1],t[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue",title="Target")
 xlims!(0,40)
 ylims!(0,180)
 
 l3 = histogram2d(c[:,1],c[:,2],bins=50,markersize=2,label="convolution")
-scatter!(l3,c[:,1],c[:,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue",title="Convolution")
+# scatter!(l3,c[1:nShow,1],c[1:nShow,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue",title="Convolution")
 xlims!(0,40)
 ylims!(0,180)
 
@@ -329,11 +334,11 @@ for i in 1:100
     d[(i-1)*100+1:i*100, 2] .= aux[2,:]
 end
 l4 = histogram2d(d[:,1],d[:,2],bins=100,markersize=2,label="convolution")
-scatter!(l4,d[1:2:10000,1],d[1:10:10000,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue",title="Deconvolution")
+# scatter!(l4,d[1:10:10000,1],d[1:10:10000,2],markersize=1,markerstrokewidth=0,label="noise",color="lightblue",title="Deconvolution")
 xlims!(0,40)
 ylims!(0,180)
 
-plot(l1,l2,l3,l4,layout=(2,2),size=[1200,600])
+plot(l1,l2,l3,l4,layout=(2,2),size=[900,600])
 ```
 
 

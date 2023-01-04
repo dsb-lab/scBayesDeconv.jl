@@ -26,13 +26,13 @@ Deconvolution Bayesian Gaussian Mixture Models:
 The package can be installed ass
 
 ```
-pkg> add github.com/gatocor/scBayesDeconv.jl#VERSION
+pkg> add https://github.com/gatocor/scBayesDeconv.jl#VERSION
 ```
 
 or 
 
 ```
 using Pkg
-Pkg.add("github.com/gatocor/scBayesDeconv.jl#VERSION")
+Pkg.add("https://github.com/gatocor/scBayesDeconv.jl#VERSION")
 ```
 for the version of interest.
