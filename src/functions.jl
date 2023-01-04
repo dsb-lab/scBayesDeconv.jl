@@ -18,7 +18,7 @@ Return
 
  A MixtureModel realization from the bayesian sampling of the model.
 """
-function sample(model;distribution=:Target)
+function Distributions.sample(model::GaussianMixtureModel;distribution=:Target)
 
     if distribution == :Target
 
