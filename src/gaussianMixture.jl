@@ -494,8 +494,13 @@ function infiniteGaussianMixture(X::Matrix;
             end
 
             #Reassign sample
+            w .= 0
             for j in 1:k
-                w[j] = logpdf(MvTDist(νeff[j],μyeff[j],Σyeff[j]/νeff[j]),@views(X[i,:]))+log(n[j]/(nCells+α-1))
+                try
+                    w[j] = logpdf(MvTDist(νeff[j],μyeff[j],Σyeff[j]/νeff[j]),@views(X[i,:]))+log(n[j]/(nCells+α-1)) 
+                catch
+                    println("Asignation failled.")
+                end
             end
             w[end] = logpdf(MultivariateNormal(μ0,Σ0),@views(X[i,:]))+log(α/(nCells+α-1))
             w .-= maximum(w)

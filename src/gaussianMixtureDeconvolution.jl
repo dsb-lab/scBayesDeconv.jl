@@ -464,7 +464,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianMixtureModel
                     try
                         w[cartesian2lin(j,k,kN,kT+1)] = logpdf(MvTDist(νeff[j,k],μyeff[j,k],Σyeff[j,k]/νeff[j,k]),@views(X[i,:]))+log(n[j,k]/(nCells+α-1))
                     catch
-                        error((j,k,cartesian2lin(j,k,kN,kT+1)),"\n S2",S2,"\n Σyeff",Σyeff,"\n m1",m1,"\n m0",m0,"\n")
+                        println("Asignation failled.")
                     end
                 end
                 w[cartesian2lin(j,kT+1,kN,kT+1)] = logpdf(MultivariateNormal(μ0+centersN[kN],Σ0+covariancesN[kN]),@views(X[i,:]))+log(α/(nCells+α-1))

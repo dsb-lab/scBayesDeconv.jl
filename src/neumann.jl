@@ -1,3 +1,11 @@
+struct Neumann 
+    interpolate
+end
+
+(y::Neumann)(x::Matrix) = y.interpolate.(x[:,1])
+(y::Neumann)(x::Vector) = y.interpolate.(x)
+(y::Neumann)(x::Real) = y.interpolate(x)
+
 function neumannDeconvolutionNaturalEstimate_(data,w)
 
     sol = zeros(Complex,length(w))
@@ -11,15 +19,15 @@ function neumannDeconvolutionNaturalEstimate_(data,w)
 end
 
 """
-    function neumannDeconvolution(aut,data,d1=1,d2=1,dw=0.01,w_lims=[-100,100],dx=0.01,x_lims=[-100,100],cut_off=true)
+    function neumannDeconvolution(noise::Matrix,conv::Matrix,d1=1,d2=1,dw=0.01,w_lims=[-100,100],dx=0.01,x_lims=[-100,100],cut_off=true)
 
 Fast-Fourier method for the deconvolution of two distributions as proposed by (Neumann & Hössjer)[https://www.tandfonline.com/doi/abs/10.1080/10485259708832708]. 
 This method as implemented only works for 1D distributions.
 
 Arguments:
 
- - **aut**: Autofluorescence data.
- - **data**: Convolution data.
+ - **noise::Matrix**: Autofluorescence data of size (NSamples,1).
+ - **conv::Matrix**: Convolution data of size (NSamples,1).
  - **d1=1**: Weight of the estimation of the frequencies to be removed based on the size of the data.
  - **d2=1**: Weight of the estimation of the frequencies to be removed  based on the size of the data.
  - **dw=0.01**: Width of the frequency sampling.
@@ -32,7 +40,10 @@ Returns:
 
 Deconvolved signal, Points of the deconvolved signal determined by **x_lims** and **dx**.
 """
-function neumannDeconvolution(aut,data,d1=1,d2=1,dw=0.01,w_lims=[-100,100],dx=0.01,x_lims=[-100,100],cut_off=true)
+function neumannDeconvolution(noise::Matrix,conv::Matrix,d1=1,d2=1,dw=0.01,w_lims=[-100,100],dx=0.01,x_lims=[-100,100],cut_off=true)
+
+    aut = noise[:,1]
+    data = conv[:,1]
 
     w = range(w_lims[1],w_lims[2],step=dw)
     x = range(x_lims[1],x_lims[2],step=dx)
@@ -53,6 +64,6 @@ function neumannDeconvolution(aut,data,d1=1,d2=1,dw=0.01,w_lims=[-100,100],dx=0.
         deconv = (phiY .*Kw ./phie * exp.(-1im .*reshape(w,length(w),1) .*x)) .*dw
     end
 
-    return real.(deconv), x
+    return Neumann(Interpolations.LinearInterpolation(x,real.(deconv),extrapolation_bc=0))
 
 end
