@@ -165,14 +165,14 @@ module metrics
 
     Keyword Args:
 
-     - **box**: Matrix with box of integration with (min max) in columns and dimensions in rows.
-     - **d**: Width of integration steps.
+     - **box=[-100. 100.]**: Matrix with box of integration with (min max) in columns and dimensions in rows.
+     - **d=.1**: Width of integration steps.
 
     Return:
 
     The mio value.
     """
-    function mio(f1,f2;box=box,d=.1)
+    function mio(f1,f2;box=[-100. 100.],d=.1)
 
         mio_ = 1
         dd = d^size(box)[1]
