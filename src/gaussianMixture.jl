@@ -551,7 +551,7 @@ function infiniteGaussianMixture(X::Matrix;
 
             #     end
 
-            # end
+            end
 
             #Reassign sample
             w .= 0
