@@ -38,12 +38,7 @@ function gmloglikelihood!(p::Matrix,X::Matrix,centers::Vector,covariances::Vecto
         μ = centers[j]
         Σ = covariances[j]
         w = weights[j]
-        dist = 0
-        try
-            dist = MultivariateNormal(μ,Σ)
-        catch
-            error(weights,w)
-        end
+        dist = MultivariateNormal(μ,Σ)
         #Compute the logpdf for each sample
         for i in 1:size(X)[1]
             x = @views X[i,:]
@@ -288,10 +283,7 @@ function finiteGaussianMixture(X::Matrix;
     #Initialization
     centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization)
     μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
-    for i in 1:length(covariances) #Make sure that we start with a valid covariance for Cholevsky factorization
-        covariances[i] = (covariances[i]*sum(identities.==i)+Σ0*ν0)/(sum(identities.==i)+ν0)
-    end
-    
+
     #Auxiliar functions
     p = zeros(nCells,k)
     votes = fill(0,k) #Auxiliar for sampling from the Dirichlet distributions
@@ -388,7 +380,7 @@ Keyword Arguments:
  - **k::Int**: Number of components of the mixture to start with.
  - **initialization::Union{String,Matrix} = "kmeans"**: Method to initializate the mixture parameters. 
  - **α = 1**: Hyperparameter of the Dirichlet distribution. The higher, the more probable that a cell will be assigned to another distribution.
- - **ν0 = 1**: Hyperparameter of the InverseWishart distribution. The highler, the more weight has the pior InverseWishart. It should be never less that dimensions.
+ - **ν0 = 1**: Hyperparameter of the InverseWishart distribution. The highler, the more wight has the pior InverseWishart.
  - **κ0 = 0.001**: Hyperparameter of the Normal prior distribution. The higher, the more focussed will be the prior Normal around the mean.
  - **μ0 = nothing**: Hyperparameter of indicating the mean of the Normal. If nothing it will be estimated.
  - **Σ0 = nothing**: Hyperparameter indicating the prior Covariance distribution of the model. If nothing it will be estimated.
@@ -406,7 +398,7 @@ function infiniteGaussianMixture(X::Matrix;
     k = 1,
     initialization::Union{String,Matrix} = "kmeans",
     α = 1,
-    ν0 = size(X)[2]+4,
+    ν0 = 1,
     κ0 = 0.001,
     μ0 = nothing,
     Σ0 = nothing,
@@ -429,15 +421,12 @@ function infiniteGaussianMixture(X::Matrix;
 
     #Initialization
     centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization)
-    #Hyperparameters
-    μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
-    for i in 1:length(covariances) #Make sure that we start with a valid covariance for Cholevsky factorization
-        covariances[i] = (covariances[i]*sum(identities.==i)+Σ0*ν0)/(sum(identities.==i)+ν0)
-    end
     #Statistics
     m = deepcopy(centers)
     S2 = deepcopy(covariances)
     n = Int[sum(identities.==i) for i in 1:k]
+    #Hyperparameters
+    μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
     #Effective parameters
     m0 = Float64[]
     m1 = Float64[]
@@ -465,8 +454,6 @@ function infiniteGaussianMixture(X::Matrix;
 
         for i in 1:nCells           
 
-            # print(i," ")
-
             id = identities[i]
 
             #Remove sample
@@ -489,11 +476,6 @@ function infiniteGaussianMixture(X::Matrix;
                 #Statistics
                 mnew .= (n[id]*m[id]-X[i,:])/(n[id]-1)
                 S2[id] .= (n[id]*S2[id] + n[id]*m[id]*transpose(m[id]) - X[i,:]*transpose(X[i,:]))/(n[id]-1) - mnew*transpose(mnew)
-                if !isposdef(S2[id])
-                    S2[id] .= cov(X[identities.==id,:],corrected=false)
-                end
-                S2[id] = (S2[id]+transpose(S2[id]))/2
-                identities[i] = -1
                 m[id] .= mnew
                 n[id] -= 1 
                 #Effective parameters
@@ -554,12 +536,10 @@ function infiniteGaussianMixture(X::Matrix;
             w .= 0
             for j in 1:k
                 try
-                    aux = Σyeff[j]/νeff[j]
-                    aux = (aux +transpose(aux))/2
-                    w[j] = logpdf(MvTDist(νeff[j],μyeff[j],aux),@views(X[i,:]))+log(n[j]/(nCells+α-1)) 
+                    w[j] = logpdf(MvTDist(νeff[j],μyeff[j],Σyeff[j]/νeff[j]),@views(X[i,:]))+log(n[j]/(nCells+α-1)) 
                 catch
-                    println("Asignation failed. Test", i)
-                    error(j," ",n[j]," ",m0[j]," ",m1[j]," ",νeff[j])
+                    println("Asignation failed.")
+                    error(Σyeff[j]/νeff[j])
                 end
             end
             w[end] = logpdf(MultivariateNormal(μ0,Σ0),@views(X[i,:]))+log(α/(nCells+α-1))
