@@ -1,7 +1,7 @@
 module scBayesDeconv
 
     #Packages
-    using MLJ, Distributions, Statistics, Random, ProgressMeter, Interpolations
+    using MLJ, Distributions, Statistics, Random, ProgressMeter, Interpolations, LinearAlgebra
 
     #Models for initialization
     kmeans_ = MLJ.@load KMeans pkg=Clustering verbosity=0
