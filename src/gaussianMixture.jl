@@ -463,8 +463,6 @@ function infiniteGaussianMixture(X::Matrix;
     #Loop
     for step in 1:(ignoreSteps+saveSteps)
 
-        println(step)
-
         for i in 1:nCells           
 
             # print(i," ")
@@ -504,14 +502,13 @@ function infiniteGaussianMixture(X::Matrix;
                 νeff[id] = n[id]+ν0+1-dimensions
                 μyeff[id] = (n[id]*m[id]+κ0*μ0)/(n[id]+κ0)
                 cc = 0
-                if n[id] <= 5#dimensions
+                Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
+                Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
+                try
+                    cholesky(Σyeff[id])
+                catch
                     Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+0. *S2[id]+ν0*Σ0)/m0[id]
                     Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
-                    cc = 1    
-                else
-                    Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
-                    Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
-                    cc = 2
                 end
 
             #     if step > 1 #&& i > 74000
@@ -591,11 +588,12 @@ function infiniteGaussianMixture(X::Matrix;
                 if !isposdef(S2[id])
                     S2[id] .= cov(X[identities.==id,:],corrected=false)
                 end
-                if n[id] <= 5#dimensions
+                Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
+                Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
+                try
+                    cholesky(Σyeff[id])
+                catch
                     Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+0. *S2[id]+ν0*Σ0)/m0[id]
-                    Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
-                else
-                    Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
                     Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
                 end
 
@@ -616,11 +614,12 @@ function infiniteGaussianMixture(X::Matrix;
                 if !isposdef(S2[id])
                     S2[id] .= cov(X[identities.==id,:],corrected=false)
                 end
-                if n[id] <= 5#dimensions
+                Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
+                Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
+                try
+                    cholesky(Σyeff[id])
+                catch
                     Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+0. *S2[id]+ν0*Σ0)/m0[id]
-                    Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
-                else
-                    Σyeff[id] = (m1[id]*(μ0-m[id])*transpose(μ0-m[id])+n[id]*S2[id]+Σ0)/m0[id]
                     Σyeff[id] = (Σyeff[id]+transpose(Σyeff[id]))/2 #Solve problem with hermitian
                 end
 
