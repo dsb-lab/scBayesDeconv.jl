@@ -95,7 +95,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
     k::Int,
     initialization::Union{String,Matrix} = "finiteMixtureModel",
     α = 1,
-    ν0 = size(X)[2]+4,
+    ν0 = 1,
     κ0 = 0.001,
     μ0 = nothing,
     Σ0 = nothing,
@@ -114,8 +114,16 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
     end 
 
     #Initialization
-    centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization)
     μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
+    centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization,
+                                                                            α,
+                                                                            ν0,
+                                                                            κ0,
+                                                                            μ0,
+                                                                            Σ0,
+                                                                            ignoreSteps,
+                                                                            saveSteps,
+                                                                            saveEach)
 
     #Auxiliar functions
     kN = Y.components
@@ -153,12 +161,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
         votes .= 0 #Reset votes
         votesK .= 0 #Reset votes
         for i in 1:nCells           
-            try
-                vote .= rand(Multinomial(1,@views(p[i,:])))
-            catch
-                println(centers,covariances,weights)
-                error(centersN,covariancesN,weightsN)
-            end
+            vote .= rand(Multinomial(1,@views(p[i,:])))
             pos = lin2cartesian(findfirst(vote.==1),kN,k)
             votes .+= vote
             votesK[pos[2]] += 1
@@ -168,6 +171,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
         #Sample parameters
             #Sample weights
         weights .= rand(Dirichlet(votesK.+α/k))
+        total = 0
         for comp in 1:k
             idsT = identities.==comp
 
@@ -180,27 +184,30 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
                 for compN in 1:kN
                     idsN = identitiesN.==compN
                     ids = idsN .& idsT
+                    total += sum(ids)
                     if sum(ids) > dimensions
                         #Statistics
                         aux = (reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN]-centers[comp])
-                        m2 .+= votes[cartesian2lin(comp,compN,k,kN)]*aux*transpose(aux)
-                        S2 .+= votes[cartesian2lin(comp,compN,k,kN)]*(cov(@views(X[ids,:]),corrected=false)-covariancesN[compN])
+                        m2 .+= votes[cartesian2lin(compN,comp,kN,k)]*aux*transpose(aux)
+                        S2 .+= votes[cartesian2lin(compN,comp,kN,k)]*(cov(@views(X[ids,:]),corrected=false)-covariancesN[compN])
                     else
                         m2 .+= 0.
                         S2 .+= 0.
                     end
                 end
-                for i in 1:dimensions
-                    if S2[i,i] < 0
-                        S2[i,i] = 0
-                    end
-                end
-                neff = votesK[comp]+ν0+1
+                # for i in 1:dimensions
+                #     if S2[i,i] <= 0
+                #         S2[i,i] = 0.
+                #     end
+                # end
+                if votesK[comp] > 1 && isposdef(S2)
+                    neff = votesK[comp]+ν0+1
 
-                Σeff = S2 + m2 + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
-                Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
-                covariances[comp] = rand(InverseWishart(neff,Σeff))
-                covariances[comp] = (covariances[comp]+transpose(covariances[comp]))/2
+                    Σeff = S2 + m2 + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
+                    Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hermicity
+                    covariances[comp] = rand(InverseWishart(neff,Σeff))
+                    covariances[comp] = (covariances[comp]+transpose(covariances[comp]))/2
+                end
                 #Sample centers
                 m .= 0
                 S2 .= 0   
@@ -210,11 +217,11 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
                     s = inv(covariances[comp]+covariancesN[compN])
                     #Statistics
                     if sum(ids) > dimensions
-                        m .+= s*(votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0)
+                        m .+= s*(votes[cartesian2lin(compN,comp,kN,k)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0)
                     else
                         m .+= 0
                     end
-                    S2 .+= s*(votes[cartesian2lin(comp,compN,k,kN)]+κ0)
+                    S2 .+= s*(votes[cartesian2lin(compN,comp,kN,k)]+κ0)
                 end
                 S2 = inv(S2)
                 m = S2*m
@@ -597,7 +604,7 @@ function infiniteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianMixtureModel
                         ids = idsN .& idsT
                         s = inv(covariances[comp]+covariancesN[compN])
                         #Statistics
-                        # println((votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0))
+                        # println((votes[cartesian2lin(compN,comp,kN,k)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0))
                         if sum(ids) > 0
                             m_ .+= s*(n[compN,comp]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0)
                             S2_ .+= s*(n[compN,comp]+κ0)
