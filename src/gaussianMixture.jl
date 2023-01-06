@@ -78,10 +78,10 @@ function initializationGaussianMixture(
         end
     end
 
-    centers = Vector{Float32}[]
+    centers = Vector{Float64}[]
     identities = zeros(Int, size(X)[1])
-    covariances = Matrix{Float32}[]
-    weights = zeros(Float32, k)
+    covariances = Matrix{Float64}[]
+    weights = zeros(Float64, k)
     if initialization in ["kmeans","random"] 
         if initialization == "kmeans" && k > 1
             #Fit kmeans
@@ -95,11 +95,19 @@ function initializationGaussianMixture(
         end
         #Identities
         identities = closerPoints(X,centers)
-        #Centers
-        centers = [reshape(mean(X[identities.==i,:],dims=1),dimensions) for i in 1:k]
-        #Covariances
+        #Centers and Covariances
+        centers = Vector{Float64}[]
         for id in 1:k
-            push!(covariances,cov(@views(X[identities.==id,:]),corrected=false))
+            if sum(identities.==id) > 1
+                push!(centers,reshape(mean(X[identities.==id,:],dims=1),dimensions))
+                push!(covariances,cov(@views(X[identities.==id,:]),corrected=false))
+            elseif sum(identities.==id) == 1
+                push!(centers,reshape(mean(X[identities.==id,:],dims=1),dimensions))
+                push!(covariances,zeros(dimensions,dimensions))
+            else
+                push!(centers,zeros(dimensions))
+                push!(covariances,zeros(dimensions,dimensions))
+            end
         end
         #Weights
         weights = [sum(identities.==id)/nCells for id in 1:k]
@@ -283,6 +291,9 @@ function finiteGaussianMixture(X::Matrix;
     #Initialization
     centers,covariances,weights,identities = initializationGaussianMixture(X,k,initialization)
     μ0,Σ0 = initializationGaussianMixtureHyperparameters(X,μ0,Σ0)
+    for i in 1:k
+       covariances[i] = (nCells*weights[i] .*covariances[i]+ν0.*Σ0)/(nCells*weights[i]+ν0)
+    end
 
     #Auxiliar functions
     p = zeros(nCells,k)
@@ -295,7 +306,11 @@ function finiteGaussianMixture(X::Matrix;
     #Loop
     for step in 1:(ignoreSteps+saveSteps)
         #Sample identities
-        gmlikelihood!(p,X,centers,covariances,weights)
+        try
+            gmlikelihood!(p,X,centers,covariances,weights)
+        catch
+            error(centers,covariances,weights)
+        end
         votes .= 0 #Reset votes
         for i in 1:nCells           
             vote .= rand(Multinomial(1,@views(p[i,:])))
@@ -308,7 +323,8 @@ function finiteGaussianMixture(X::Matrix;
         for comp in 1:k
             ids = identities.==comp
 
-            if votes[comp] > dimensions #Check if we have enough statistical power to compute the wishart            
+            if votes[comp] > dimensions #Check if we have enough statistical power to compute the wishart   
+
                 #Statistics
                 m = reshape(mean(X[ids,:],dims=1),dimensions)
                 S2 = cov(@views(X[ids,:]),corrected=false)
