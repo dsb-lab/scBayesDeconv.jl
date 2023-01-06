@@ -153,7 +153,12 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
         votes .= 0 #Reset votes
         votesK .= 0 #Reset votes
         for i in 1:nCells           
-            vote .= rand(Multinomial(1,@views(p[i,:])))
+            try
+                vote .= rand(Multinomial(1,@views(p[i,:])))
+            catch
+                println(centers,covariances,weights)
+                error(centersN,covariancesN,weightsN)
+            end
             pos = lin2cartesian(findfirst(vote.==1),kN,k)
             votes .+= vote
             votesK[pos[2]] += 1
@@ -171,15 +176,20 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
                 #Sample covariance
                 m2 .= 0
                 S2 .= 0   
+                ids = 0
                 for compN in 1:kN
                     idsN = identitiesN.==compN
                     ids = idsN .& idsT
-                    #Statistics
-                    aux = (reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN]-centers[comp])
-                    m2 .+= votes[cartesian2lin(comp,compN,k,kN)]*aux*transpose(aux)
-                    S2 .+= votes[cartesian2lin(comp,compN,k,kN)]*(cov(@views(X[ids,:]),corrected=false)-covariancesN[compN])
+                    if sum(ids) > dimensions
+                        #Statistics
+                        aux = (reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN]-centers[comp])
+                        m2 .+= votes[cartesian2lin(comp,compN,k,kN)]*aux*transpose(aux)
+                        S2 .+= votes[cartesian2lin(comp,compN,k,kN)]*(cov(@views(X[ids,:]),corrected=false)-covariancesN[compN])
+                    else
+                        m2 .+= 0.
+                        S2 .+= 0.
+                    end
                 end
-                # println(votes,m/votesK[comp],S2/votesK[comp])
                 for i in 1:dimensions
                     if S2[i,i] < 0
                         S2[i,i] = 0
@@ -189,7 +199,19 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
 
                 Σeff = S2 + m2 + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
                 Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
-                covariances[comp] = rand(InverseWishart(neff,Σeff))
+                try
+                    covariances[comp] = rand(InverseWishart(neff,Σeff))
+                catch
+                    println(votes[cartesian2lin(comp,compN,k,kN)])
+                    println(sum(ids))
+                    println(S2)
+                    println(isposdef(S2))
+                    println(m2)
+                    println(isposdef(m2))
+                    println(isposdef(κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0))))
+                    println(isposdef(Σ0))
+                    error(votesK[comp])
+                end
                 covariances[comp] = (covariances[comp]+transpose(covariances[comp]))/2
                 #Sample centers
                 m .= 0
@@ -200,7 +222,11 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
                     s = inv(covariances[comp]+covariancesN[compN])
                     #Statistics
                     # println((votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0))
-                    m .+= s*(votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0)
+                    if sum(ids) > dimensions
+                        m .+= s*(votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0)
+                    else
+                        m .+= 0
+                    end
                     S2 .+= s*(votes[cartesian2lin(comp,compN,k,kN)]+κ0)
                 end
                 S2 = inv(S2)
