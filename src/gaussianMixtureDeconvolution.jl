@@ -229,7 +229,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
             dist = MixtureModel(MultivariateNormal[[MultivariateNormal(copy(i),copy(j)) for (i,j) in zip(centers,covariances)]...],copy(weights))
             push!(saveDist,deepcopy(dist))
             push!(saveIds,copy(identities))
-            push!(saveN)
+            push!(saveN,nSample)
         end
 
         #Show progress bar if verbose
