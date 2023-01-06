@@ -133,12 +133,19 @@ function initializationGaussianMixture(
                                         saveSteps = saveSteps,
                                         saveEach = saveEach)
 
-        i = findmax(model.likelihood)
+        i = findmax(model.likelihood)[2]
 
-        centers = model.centers[i]
-        covariances = model.covariances[i]
-        weights = model.weights[i]
-        identities = closerPoints(X,centers)
+        cts = zeros(k,size(X)[2])
+
+        centers = [Vector(model.samples[i].components[j].μ) for j in 1:k]
+        covariances = [Matrix(model.samples[i].components[j].Σ) for j in 1:k]
+        weights = model.samples[i].prior.p
+
+        for i in 1:k
+            cts[i,:] .= centers[i]
+        end
+
+        identities = closerPoints(X,cts)
 
     elseif typeof(initialization) <: Vector
         #Identitites
