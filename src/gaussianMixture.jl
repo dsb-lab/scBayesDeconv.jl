@@ -53,6 +53,7 @@ function gmlikelihood!(p::Matrix,X::Matrix,centers::Vector,covariances::Vector,w
 
     gmloglikelihood!(p,X,centers,covariances,weights)
 
+    l = sum(p)
     #Rescale
     p .-= maximum(p,dims=2)
     #Exp
@@ -60,13 +61,21 @@ function gmlikelihood!(p::Matrix,X::Matrix,centers::Vector,covariances::Vector,w
     #Normalize
     p ./= sum(p,dims=2)
 
-    return
+    return l
 end
 
 function initializationGaussianMixture(
                                     X::Matrix,
                                     k::Int,
-                                    initialization::Union{String,Vector} = "kmeans"
+                                    initialization::Union{String,Vector} = "kmeans",
+                                    α = 1,
+                                    ν0 = size(X)[2],
+                                    κ0 = 0.001,
+                                    μ0 = nothing,
+                                    Σ0 = nothing,
+                                    ignoreSteps::Int = 1000, 
+                                    saveSteps::Int = 1000,
+                                    saveEach::Int = 10
                                     )
 
     nCells, dimensions = size(X)
@@ -111,6 +120,26 @@ function initializationGaussianMixture(
         end
         #Weights
         weights = [sum(identities.==id)/nCells for id in 1:k]
+
+    elseif initialization == "finiteMixtureModel"
+
+        model = finiteGaussianMixture(X,k=k,
+                                        α = α,
+                                        ν0 = ν0,
+                                        κ0 = κ0,
+                                        μ0 = μ0,
+                                        Σ0 = Σ0,
+                                        ignoreSteps = ignoreSteps,
+                                        saveSteps = saveSteps,
+                                        saveEach = saveEach)
+
+        i = findmax(model.likelihood)
+
+        centers = model.centers[i]
+        covariances = model.covariances[i]
+        weights = model.weights[i]
+        identities = closerPoints(X,centers)
+
     elseif typeof(initialization) <: Vector
         #Identitites
         identities .= initialization
@@ -210,6 +239,7 @@ function gmIdentitiesProbability!(p::Matrix,X::Matrix,centers::Matrix,covariance
 
     gmloglikelihood!(p,X,centers,covariances,weights)
 
+    l = sum(p)
     #Normalize taking the maximum
     pmax = maximum(p,dims=2)
     p .-= pmax
@@ -220,7 +250,7 @@ function gmIdentitiesProbability!(p::Matrix,X::Matrix,centers::Matrix,covariance
     #Normalize
     p ./= sum(p,dims=2)
 
-    return
+    return l
 end
 
 """
@@ -302,12 +332,14 @@ function finiteGaussianMixture(X::Matrix;
 
     saveIds = Vector{Int}[]
     saveDist = MixtureModel[]
+    likelihood = Float64[]
+    l = 0.
 
     #Loop
     for step in 1:(ignoreSteps+saveSteps)
         #Sample identities
         try
-            gmlikelihood!(p,X,centers,covariances,weights)
+            l = gmlikelihood!(p,X,centers,covariances,weights)
         catch
             error(centers,covariances,weights)
         end
@@ -348,6 +380,7 @@ function finiteGaussianMixture(X::Matrix;
             dist = MixtureModel(MultivariateNormal[[MultivariateNormal(copy(i),copy(j)) for (i,j) in zip(centers,covariances)]...],copy(weights))
             push!(saveDist,deepcopy(dist))
             push!(saveIds,copy(identities))
+            push!(likelihood,l)
         end
 
         #Show progress bar if verbose
@@ -365,6 +398,7 @@ function finiteGaussianMixture(X::Matrix;
                                         :μ0 => μ0,
                                         :Σ0 => Σ0
                                     ]),
+                                likelihood,
                                 saveDist,
                                 saveIds)
 end

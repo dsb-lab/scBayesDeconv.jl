@@ -93,7 +93,7 @@ A GaussianFiniteMixtureModelDeconvolved with the sampling of the bayesian model.
 """
 function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureModel;
     k::Int,
-    initialization::Union{String,Matrix} = "kmeans",
+    initialization::Union{String,Matrix} = "finiteMixtureModel",
     α = 1,
     ν0 = size(X)[2]+4,
     κ0 = 0.001,
@@ -199,19 +199,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
 
                 Σeff = S2 + m2 + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
                 Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
-                try
-                    covariances[comp] = rand(InverseWishart(neff,Σeff))
-                catch
-                    println(votes[cartesian2lin(comp,compN,k,kN)])
-                    println(sum(ids))
-                    println(S2)
-                    println(isposdef(S2))
-                    println(m2)
-                    println(isposdef(m2))
-                    println(isposdef(κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0))))
-                    println(isposdef(Σ0))
-                    error(votesK[comp])
-                end
+                covariances[comp] = rand(InverseWishart(neff,Σeff))
                 covariances[comp] = (covariances[comp]+transpose(covariances[comp]))/2
                 #Sample centers
                 m .= 0
@@ -221,7 +209,6 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
                     ids = idsN .& idsT
                     s = inv(covariances[comp]+covariancesN[compN])
                     #Statistics
-                    # println((votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0))
                     if sum(ids) > dimensions
                         m .+= s*(votes[cartesian2lin(comp,compN,k,kN)]*(reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN])+κ0*μ0)
                     else

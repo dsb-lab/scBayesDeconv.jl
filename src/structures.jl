@@ -4,6 +4,7 @@ mutable struct GaussianFiniteMixtureModel <: GaussianMixtureModel
 
     components::Int
     hyperparameters::Dict{Symbol,Any}
+    likelihood::Vector{Float64}
     samples::Vector{MixtureModel}
     identities::Vector{Vector{Int}}
 
