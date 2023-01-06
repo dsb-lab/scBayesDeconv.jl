@@ -95,7 +95,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
     k::Int,
     initialization::Union{String,Matrix} = "kmeans",
     α = 1,
-    ν0 = 1,
+    ν0 = size(X)[2]+4,
     κ0 = 0.001,
     μ0 = nothing,
     Σ0 = nothing,
@@ -190,6 +190,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureM
                 Σeff = S2 + m2 + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
                 Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hemicity
                 covariances[comp] = rand(InverseWishart(neff,Σeff))
+                covariances[comp] = (covariances[comp]+transpose(covariances[comp]))/2
                 #Sample centers
                 m .= 0
                 S2 .= 0   
