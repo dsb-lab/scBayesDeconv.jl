@@ -4,5 +4,5 @@
 *.pdf
 *.svg
 docs/build/*
-examples/Data/FlowRepository_FR-FCM-Z2ST_files/*.fcs
+examples/paper/Data/FlowRepository_FR-FCM-Z2ST_files
 *.sh
