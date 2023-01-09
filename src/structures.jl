@@ -25,7 +25,7 @@ mutable struct GaussianFiniteMixtureModelDeconvolved <: GaussianMixtureModel
     samples::Vector{MixtureModel}
     identities::Vector{Vector{Int}}
     noiseDistSamples::Vector{Int}
-    noiseModel::GaussianFiniteMixtureModel
+    noiseModel::GaussianMixtureModel
 
 end
 
