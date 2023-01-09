@@ -91,7 +91,7 @@ Return
 
 A GaussianFiniteMixtureModelDeconvolved with the sampling of the bayesian model.
 """
-function finiteGaussianMixtureDeconvolution(X::Matrix, Y::GaussianFiniteMixtureModel;
+function finiteGaussianMixtureDeconvolution(X::Matrix, Y::Union{GaussianFiniteMixtureModel,GaussianFiniteMixtureModelDeconvolved};
     k::Int,
     initialization::Union{String,Matrix} = "finiteMixtureModel",
     α = 1,
