@@ -225,6 +225,7 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::Union{GaussianFiniteMi
                 end
                 S2 = inv(S2)
                 m = S2*m
+                S2 = (S2+transpose(S2))/2
                 centers[comp] .= rand(MultivariateNormal(m,S2))
 
             end
