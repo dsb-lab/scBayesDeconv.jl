@@ -3,11 +3,11 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://gatocor.github.io/scBayesDeconv.jl/dev/)
 # scBayesDeconv.jl
 
-This is a package that implements the bayesian deconvolution methods for solving the following problem:
+This package implements a Bayesian deconvolution method for extracting the distribution of a target signal $T$ from a measured signal $C$ subject to noise $\xi$:
 
 $$C = T + \xi$$
 
-where $C$ (convolution), $T$ (target) and $\xi$ (noise) are random variables and we have sample sets from $C$ and $\xi$; and we would like to know the distribution of the random variable $T$.
+In other words, we have sample sets from $C$ and $\xi$; and we would like to know the distribution of the signal $T$.
 
 ![svg](assets/Artificial%20Convolutions_21_0.svg)
 ## What is implemented in the package?
@@ -23,7 +23,7 @@ Deconvolution Bayesian Gaussian Mixture Models:
  - Infinite Deconvolution Gaussian Mixture Models (Dirichlet Processes)
 ## Installation
 
-The package can be installed ass
+The package can be installed as
 
 ```
 pkg> add https://github.com/dsb-lab/scBayesDeconv.jl#VERSION
