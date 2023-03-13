@@ -1,4 +1,8 @@
 
+ [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)]([https://dsb-lab.github.io/scBayesDeconv.jl](https://github.com/dsb-lab/scBayesDeconv.jl/stable/)
+ [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)]([https://dsb-lab.github.io/scBayesDeconv.jl](https://github.com/dsb-lab/scBayesDeconv.jl/dev/)
+
+# scBayesDeconv.jl
 
 This package implements a Bayesian deconvolution method for extracting the distribution of a target signal $T$ from a measured signal $C$ subject to noise $\xi$:
 
