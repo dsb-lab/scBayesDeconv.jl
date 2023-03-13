@@ -1,6 +1,5 @@
-
- [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)]([https://dsb-lab.github.io/scBayesDeconv.jl](https://github.com/dsb-lab/scBayesDeconv.jl/stable/)
- [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)]([https://dsb-lab.github.io/scBayesDeconv.jl](https://github.com/dsb-lab/scBayesDeconv.jl/dev/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://dsb-lab.github.io/scBayesDeconv.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://dsb-lab.github.io/scBayesDeconv.jl/dev/)
 
 # scBayesDeconv.jl
 
