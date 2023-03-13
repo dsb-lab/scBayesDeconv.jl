@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Artificial convolutions · scBayesDeconv.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">scBayesDeconv.jl</a></span></div><form class="docs-search" action="../search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href="Artificial Convolutions.html">Artificial convolutions</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#Distribution-where-the-noise-produces-an-artifact-and-a-shift"><span>Distribution where the noise produces an artifact and a shift</span></a></li><li><a class="tocitem" href="#Fitting-the-data"><span>Fitting the data</span></a></li><li class="toplevel"><a class="tocitem" href="#Distribution-where-the-noise-covers-a-bimodality"><span>Distribution where the noise covers a bimodality</span></a></li><li class="toplevel"><a class="tocitem" href="#Distribution-in-several-dimensions"><span>Distribution in several dimensions</span></a></li></ul></li><li><a class="tocitem" href="Comparison with FFT deconvolution.html">Comparison with FFT deconvolution methods</a></li></ul></li><li><a class="tocitem" href="../API.html">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="Artificial Convolutions.html">Artificial convolutions</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="Artificial Convolutions.html">Artificial convolutions</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/dsb-lab/scBayesDeconv.jl/blob/master/docs/src/examples/Artificial Convolutions.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Artificial-convolutions"><a class="docs-heading-anchor" href="#Artificial-convolutions">Artificial convolutions</a><a id="Artificial-convolutions-1"></a><a class="docs-heading-anchor-permalink" href="#Artificial-convolutions" title="Permalink"></a></h1><p>In this example we are going to show results from artificial convolutions in which the target ground truth exists and to see the effect of the deconvolution.</p><p>The first thing will be to load the necessry packages to make the distributions and plots.</p><pre><code class="language-julia hljs">using Distributions
+using Random
+using Plots</code></pre><p>Then, we load the <code>scBayesdeconv</code> distribution package.</p><pre><code class="language-julia hljs">using scBayesDeconv</code></pre><h1 id="Distribution-where-the-noise-produces-an-artifact-and-a-shift"><a class="docs-heading-anchor" href="#Distribution-where-the-noise-produces-an-artifact-and-a-shift">Distribution where the noise produces an artifact and a shift</a><a id="Distribution-where-the-noise-produces-an-artifact-and-a-shift-1"></a><a class="docs-heading-anchor-permalink" href="#Distribution-where-the-noise-produces-an-artifact-and-a-shift" title="Permalink"></a></h1><p>In this example we produce a noise that is clearly bimodal and some non-zero displacement. This noise, when convolved to any distribution will produce additional peacks and a shift in the original distribution.</p><p>First, we create the artificial distributions of the noise and the target using the package <code>Distributions.jl</code>.</p><pre><code class="language-julia hljs"># target distribution
+ndist = MixtureModel(
+    MultivariateNormal[
+        MultivariateNormal([10],ones(1,1)),
+        MultivariateNormal([50],ones(1,1))
+    ],
+    [.5,.5]
+    )
+
+# noise distribution
+tdist = MixtureModel(
+    MultivariateNormal[
+        MultivariateNormal([0],ones(1,1))
+    ],
+    [1.]
+    );</code></pre><p>Then, we create random samples to generate the dataset.</p><pre><code class="language-julia hljs">N = 1000
+
+t = Matrix(transpose(rand(tdist,N)));
+n = Matrix(transpose(rand(ndist,N)));
+c = Matrix(transpose(rand(ndist,N)))+Matrix(transpose(rand(tdist,N)));
+c = sort(c,dims=1);</code></pre><p>Finally, we visualize the distributions. </p><p>Notice that, in a real case, we will have only samples from the noise and the convolution.</p><pre><code class="language-julia hljs">bins = range(-10,60,step=.5)
+
+l1 = histogram(vec(n),normalize=true,bins=bins,label=&quot;noise&quot;,color=&quot;magenta&quot;)
+
+l2 = histogram(vec(t),normalize=true,bins=bins,label=&quot;target&quot;,color=&quot;lightblue&quot;)
+
+l3 = histogram(vec(c),normalize=true,bins=bins,label=&quot;convolution&quot;,color=&quot;green&quot;)
+
+plot(l1,l2,l3,layout=(3,1))</code></pre><p><img src="Artificial%20Convolutions_files/Artificial%20Convolutions_9_0.svg" alt="svg"/></p><h2 id="Fitting-the-data"><a class="docs-heading-anchor" href="#Fitting-the-data">Fitting the data</a><a id="Fitting-the-data-1"></a><a class="docs-heading-anchor-permalink" href="#Fitting-the-data" title="Permalink"></a></h2><p>For deconvolving the ditribution we proceed in two steps. The first step is to fit the noise to a Gaussian Mixture Model to have a model of the noise distribution.</p><p>For that we will use a infinite mixture and allow it to detect by itself the number of components needed to describe the data.</p><pre><code class="language-julia hljs">dn = infiniteGaussianMixture(n,k=2,Σ0 = ones(1,1),κ0=0.01);</code></pre><p>Then, we will fit a infinite gaussian deconvolution model to the other data.</p><pre><code class="language-julia hljs">dt = infiniteGaussianMixtureDeconvolution(c,dn,k=1,Σ0=ones(1,1),κ0=0.01,ν0=0.01,α=1);</code></pre><p>Finally, we can check the distribution results over the dataset.</p><p>The fitted models of <code>scBayesDeconvolution</code> are Bayesian model whose samples are in terms of `<code>Distributions.jl</code> distributions, so we can easily compute all the statistics that this package provides for distributions.</p><pre><code class="language-julia hljs">x = -10:60
+bins = range(-10,60,step=.5)
+
+#Ploting the noise distribution and the samples
+l1 = histogram(vec(n),normalize=true,bins=bins,label=&quot;noise&quot;,color=&quot;magenta&quot;)
+for i in 1:10:100
+    plot!(l1,x,pdf(scBayesDeconv.sample(dn),reshape(x,1,length(x)))[:,1],color=&quot;red&quot;,label=&quot;&quot;,alpha=0.1)
+end
+
+#Ploting the noise distribution and the samples
+l2 = histogram(vec(c),normalize=true,bins=bins,label=&quot;convolution&quot;,color=&quot;green&quot;)
+for i in 2:10:100
+    plot!(l2,x,pdf(scBayesDeconv.sample(dt,distribution=:Convolution),reshape(x,1,length(x)))[:,1],color=&quot;red&quot;,label=&quot;&quot;,alpha=0.1)
+end
+
+#Ploting the noise distribution and the samples
+l3 = histogram(vec(t),normalize=true,bins=bins,label=&quot;target&quot;,color=&quot;lightblue&quot;)
+for i in 2:10:100
+    plot!(l3,x,pdf(scBayesDeconv.sample(dt),reshape(x,1,length(x)))[:,1],color=&quot;red&quot;,label=&quot;&quot;,alpha=0.1)
+end
+
+plot(l1,l2,l3,layout=(3,1))</code></pre><p><img src="Artificial%20Convolutions_files/Artificial%20Convolutions_15_0.svg" alt="svg"/></p><h1 id="Distribution-where-the-noise-covers-a-bimodality"><a class="docs-heading-anchor" href="#Distribution-where-the-noise-covers-a-bimodality">Distribution where the noise covers a bimodality</a><a id="Distribution-where-the-noise-covers-a-bimodality-1"></a><a class="docs-heading-anchor-permalink" href="#Distribution-where-the-noise-covers-a-bimodality" title="Permalink"></a></h1><p>In here we show an example in which the noise covers the bimodal distribution.</p><p>The procedure is the same as in the other example but focusing in a different problem.</p><pre><code class="language-julia hljs">tdist = MixtureModel(
+    MultivariateNormal[
+        MultivariateNormal([0],ones(1,1)),
+        MultivariateNormal([3],ones(1,1))
+    ],
+    [.5,.5]
+    )
+
+ndist = MixtureModel(
+    MultivariateNormal[
+        MultivariateNormal([0],ones(1,1))
+    ],
+    [1.]
+    )
+
+N = 10000
+
+t = Matrix(transpose(rand(tdist,N)));
+n = Matrix(transpose(rand(ndist,N)));
+c = Matrix(transpose(rand(ndist,N)))+Matrix(transpose(rand(tdist,N)));
+c = sort(c,dims=1);</code></pre><pre><code class="language-julia hljs">bins = range(-6,10,step=.2)
+
+l1 = histogram(vec(n),normalize=true,bins=bins,label=&quot;noise&quot;,color=&quot;magenta&quot;)
+
+l2 = histogram(vec(t),normalize=true,bins=bins,label=&quot;target&quot;,color=&quot;lightblue&quot;)
+
+l3 = histogram(vec(c),normalize=true,bins=bins,label=&quot;convolution&quot;,color=&quot;green&quot;)
+
+plot(l1,l2,l3,layout=(3,1))</code></pre><p><img src="Artificial%20Convolutions_files/Artificial%20Convolutions_18_0.svg" alt="svg"/></p><pre><code class="language-julia hljs">dn = infiniteGaussianMixture(n);</code></pre><pre><code class="language-julia hljs">dt = infiniteGaussianMixtureDeconvolution(c,dn);</code></pre><pre><code class="language-julia hljs">x = -6:.1:10
+bins = range(-6,10,step=.2)
+
+#Ploting the noise distribution and the samples
+l1 = histogram(vec(n),normalize=true,bins=bins,label=&quot;noise&quot;,color=&quot;magenta&quot;)
+for i in 1:10:100
+    plot!(l1,x,pdf(scBayesDeconv.sample(dn),reshape(x,1,length(x)))[:,1],color=&quot;red&quot;,label=&quot;&quot;,alpha=0.1)
+end
+
+#Ploting the noise distribution and the samples
+l2 = histogram(vec(c),normalize=true,bins=bins,label=&quot;convolution&quot;,color=&quot;green&quot;)
+for i in 2:1:100
+    plot!(l2,x,pdf(scBayesDeconv.sample(dt,distribution=:Convolution),reshape(x,1,length(x)))[:,1],color=&quot;red&quot;,label=&quot;&quot;,alpha=0.1)
+end
+
+#Ploting the noise distribution and the samples
+l3 = histogram(vec(t),normalize=true,bins=bins,label=&quot;target&quot;,color=&quot;lightblue&quot;)
+for i in 2:1:100
+    plot!(l3,x,pdf(scBayesDeconv.sample(dt),reshape(x,1,length(x)))[:,1],color=&quot;red&quot;,label=&quot;&quot;,alpha=0.1)
+end
+ylims!(0,.25)
+
+plot(l1,l2,l3,layout=(3,1))</code></pre><p><img src="Artificial%20Convolutions_files/Artificial%20Convolutions_21_0.svg" alt="svg"/></p><h1 id="Distribution-in-several-dimensions"><a class="docs-heading-anchor" href="#Distribution-in-several-dimensions">Distribution in several dimensions</a><a id="Distribution-in-several-dimensions-1"></a><a class="docs-heading-anchor-permalink" href="#Distribution-in-several-dimensions" title="Permalink"></a></h1><p>The method can be applied to systems with any dimension.</p><pre><code class="language-julia hljs">tdist = MixtureModel([
+    product_distribution([Gamma(3,2),Gamma(2,3)]),
+    product_distribution([Gamma(5,1),Gamma(7,7)]),
+    product_distribution([Gamma(10,1.5),Gamma(10,7)]),
+]
+)
+
+ndist = MixtureModel(
+    [
+        product_distribution([Gamma(3,2),Gamma(2,3)])
+    ],
+    [1.]
+    )
+
+N = 10000
+t = Matrix(transpose(rand(tdist,N)));
+n = Matrix(transpose(rand(ndist,N)));
+c = Matrix(transpose(rand(ndist,N))).+Matrix(transpose(rand(tdist,N)));</code></pre><pre><code class="language-julia hljs">nShow=2000
+
+l1 = histogram2d(n[:,1],n[:,2],bins=50,markersize=2,label=&quot;noise&quot;)
+# scatter!(l1,n[1:nShow,1],n[1:nShow,2],markersize=1,markerstrokewidth=0,label=&quot;noise&quot;,color=&quot;lightblue&quot;)
+xlims!(0,40)
+ylims!(0,180)
+
+l2 = histogram2d(t[:,1],t[:,2],bins=50,markersize=2,label=&quot;target&quot;)
+# scatter!(l2,t[1:nShow,1],t[1:nShow,2],markersize=1,markerstrokewidth=0,label=&quot;noise&quot;,color=&quot;lightblue&quot;)
+xlims!(0,40)
+ylims!(0,180)
+
+l3 = histogram2d(c[:,1],c[:,2],bins=50,markersize=2,label=&quot;convolution&quot;)
+# scatter!(l3,c[1:nShow,1],c[1:nShow,2],markersize=1,markerstrokewidth=0,label=&quot;noise&quot;,color=&quot;lightblue&quot;)
+xlims!(0,40)
+ylims!(0,180)
+
+plot(l1,l2,l3,layout=(1,3),size=[1900,500])</code></pre><p><img src="Artificial%20Convolutions_files/Artificial%20Convolutions_24_0.svg" alt="svg"/></p><pre><code class="language-julia hljs">dn = infiniteGaussianMixture(n);</code></pre><pre><code class="language-julia hljs">dt = infiniteGaussianMixtureDeconvolution(c,dn);</code></pre><pre><code class="nohighlight hljs">WARNING: Sampling has failed for this covariance matrix. In general this will not be a problem if only happens in rare ocassions.</code></pre><pre><code class="language-julia hljs">nShow = 1000
+
+l1 = histogram2d(n[:,1],n[:,2],bins=50,markersize=2,label=&quot;noise&quot;)
+# scatter!(l1,n[1:nShow,1],n[1:nShow,2],markersize=1,markerstrokewidth=0,label=&quot;noise&quot;,color=&quot;lightblue&quot;,title=&quot;Noise&quot;)
+xlims!(0,40)
+ylims!(0,180)
+
+l2 = histogram2d(t[:,1],t[:,2],bins=50,markersize=2,label=&quot;target&quot;)
+# scatter!(l2,t[1:nShow,1],t[1:nShow,2],markersize=1,markerstrokewidth=0,label=&quot;noise&quot;,color=&quot;lightblue&quot;,title=&quot;Target&quot;)
+xlims!(0,40)
+ylims!(0,180)
+
+l3 = histogram2d(c[:,1],c[:,2],bins=50,markersize=2,label=&quot;convolution&quot;)
+# scatter!(l3,c[1:nShow,1],c[1:nShow,2],markersize=1,markerstrokewidth=0,label=&quot;noise&quot;,color=&quot;lightblue&quot;,title=&quot;Convolution&quot;)
+xlims!(0,40)
+ylims!(0,180)
+
+d = zeros(10000,2)
+for i in 1:100
+    aux = rand(dt.samples[i],100)
+    d[(i-1)*100+1:i*100, 1] .= aux[1,:]
+    d[(i-1)*100+1:i*100, 2] .= aux[2,:]
+end
+l4 = histogram2d(d[:,1],d[:,2],bins=100,markersize=2,label=&quot;convolution&quot;)
+# scatter!(l4,d[1:10:10000,1],d[1:10:10000,2],markersize=1,markerstrokewidth=0,label=&quot;noise&quot;,color=&quot;lightblue&quot;,title=&quot;Deconvolution&quot;)
+xlims!(0,40)
+ylims!(0,180)
+
+plot(l1,l2,l3,l4,layout=(2,2),size=[900,600])</code></pre><p><img src="Artificial%20Convolutions_files/Artificial%20Convolutions_27_0.svg" alt="svg"/></p><pre><code class="language-julia hljs"></code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../index.html">« Home</a><a class="docs-footer-nextpage" href="Comparison with FFT deconvolution.html">Comparison with FFT deconvolution methods »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 13 March 2023 15:55">Monday 13 March 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
