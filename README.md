@@ -36,3 +36,7 @@ using Pkg
 Pkg.add("https://github.com/dsb-lab/scBayesDeconv.jl#VERSION")
 ```
 for the version of interest.
+
+# Getting started
+
+To understand the basic usage of these models, it is advised to see the example Artificial convolutions.
