@@ -1,7 +1,7 @@
 name = "scBayesDeconv"
 uuid = "ba4b0364-d62a-4552-92b1-eb0a52360a94"
 authors = ["gatocor <g.torregrosa@outlook.com>"]
-version = "0.1.0"
+version = "0.1"
 
 [deps]
 Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
