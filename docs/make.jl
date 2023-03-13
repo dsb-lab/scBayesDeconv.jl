@@ -15,5 +15,5 @@ format = Documenter.HTML(prettyurls = false)
 )
 
 deploydocs(
-    repo = "github.com/gatocor/scBayesDeconv.jl",
+    repo = "github.com/dsb-lab/scBayesDeconv.jl",
 )
