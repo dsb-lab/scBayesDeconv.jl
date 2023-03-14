@@ -1,7 +1,7 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://dsb-lab.github.io/scBayesDeconv.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://dsb-lab.github.io/scBayesDeconv.jl/dev/)
 
-# scBayesDeconv.jl
+# scBayesDeconv: A Julia package for noise deconvolution
 
 This package implements a Bayesian deconvolution method for extracting the distribution of a target signal $T$ from a measured signal $C$ subject to noise $\xi$:
 
@@ -23,19 +23,19 @@ Deconvolution Bayesian Gaussian Mixture Models:
  - Infinite Deconvolution Gaussian Mixture Models (Dirichlet Processes)
 ## Installation
 
-The package can be installed as
-
-```
-pkg> add https://github.com/dsb-lab/scBayesDeconv.jl#VERSION
-```
-
-or 
+The package can be installed in Julia as follows:
 
 ```
 using Pkg
 Pkg.add("https://github.com/dsb-lab/scBayesDeconv.jl#VERSION")
 ```
-for the version of interest.
+or alternatively
+
+```
+pkg> add https://github.com/dsb-lab/scBayesDeconv.jl#VERSION
+```
+
+for the version of interest (if no version is given, the development version will be installed.
 
 # Getting started
 
