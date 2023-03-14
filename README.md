@@ -30,7 +30,7 @@ The package can be installed in Julia as follows:
 using Pkg
 Pkg.add("https://github.com/dsb-lab/scBayesDeconv.jl#VERSION")
 ```
-or alternatively
+or alternatively, using the Pkg REPL:
 
 ```
 pkg> add https://github.com/dsb-lab/scBayesDeconv.jl#VERSION
