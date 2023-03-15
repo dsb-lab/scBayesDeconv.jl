@@ -40,4 +40,4 @@ for the version of interest (if no version is given, the development version wil
 
 # Getting started
 
-To explore the basic usage of these models, see the example `Artificial convolutions` in the documentation.
+To explore the basic usage of these models, see the section `Artificial convolutions` in the [documentation](https://dsb-lab.github.io/scBayesDeconv.jl/stable/).
