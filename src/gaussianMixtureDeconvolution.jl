@@ -189,24 +189,50 @@ function finiteGaussianMixtureDeconvolution(X::Matrix, Y::Union{GaussianFiniteMi
                         #Statistics
                         aux = (reshape(mean(X[ids,:],dims=1),dimensions)-centersN[compN]-centers[comp])
                         m2 .+= votes[cartesian2lin(compN,comp,kN,k)]*aux*transpose(aux)
-                        S2 .+= votes[cartesian2lin(compN,comp,kN,k)]*(cov(@views(X[ids,:]),corrected=false)-covariancesN[compN])
+
+                        #Check covariance is consistent
+                        m__ = cov(@views(X[ids,:]),corrected=false)-covariancesN[compN]
+                        cm_ = eigen(m__)
+                        m__ = Diagonal([max(cm_.values[i],0.) for i in 1:dimensions])
+                        m__ = cm_.vectors*m__*transpose(cm_.vectors)        
+                        m__ = (m__ + transpose(m__))./2
+
+                        S2 .+= votes[cartesian2lin(compN,comp,kN,k)]*m__
                     else
                         m2 .+= 0.
                         S2 .+= 0.
                     end
                 end
-                # for i in 1:dimensions
+                #Check covariance is consistent
+                # for i in 1:dimensions #Off diagonal elements
                 #     if S2[i,i] <= 0
-                #         S2[i,i] = 0.
+                #         S2[i,i] = 1
                 #     end
                 # end
-                if votesK[comp] > 1 && isposdef(S2)
+                # cm_ = eigen(S2)
+                # S2 = Diagonal([max(cm_.values[i],0.) for i in 1:dimensions])
+                # println([max(cm_.values[i],0.) for i in 1:dimensions])
+                # S2 = cm_.vectors*S2*transpose(cm_.vectors)
+                # S2 = (S2 + transpose(S2))./2
+                # println(eigen(S2).values)
+
+                # S2 = cmi_ * S2 * cmi_
+                # S2[abs.(S2).>=1] .= .9*sign.(S2)[abs.(S2).>=1]
+                # for i in 1:dimensions #Off diagonal elements
+                #     S2[i,i] = 1
+                # end
+                # S2 = cm_ * S2 * cm_
+
+                if votesK[comp] > 1 && Distributions.ispossemdef(S2)
+                    # println("Holi", S2)
                     neff = votesK[comp]+ν0+1
 
                     Σeff = S2 + m2 + κ0*(centers[comp]-μ0)*transpose((centers[comp]-μ0)) + Σ0
                     Σeff = (Σeff+transpose(Σeff))/2 #Reinforce hermicity
                     covariances[comp] = rand(InverseWishart(neff,Σeff))
                     covariances[comp] = (covariances[comp]+transpose(covariances[comp]))/2
+                # elseif !isposdef(S2)
+                #     println("I do not enter.", eigen(S2).values, isposdef(S2))
                 end
                 #Sample centers
                 m .= 0
